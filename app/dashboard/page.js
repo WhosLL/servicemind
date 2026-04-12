@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { sb } from '../../lib/supabase'
 import '../globals.css'
 
@@ -13,7 +14,17 @@ const NAV = [
   { id: 'ghl', label: 'GHL Setup' },
 ]
 
-export default function Dashboard({ salon, onLogout }) {
+export default function Dashboard() {
+  const router = useRouter()
+  const [salon, setSalon] = useState(null)
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem('sm_salon')
+      if (!s) { router.push('/login'); return }
+      setSalon(JSON.parse(s))
+    } catch { router.push('/login') }
+  }, [])
+
   const [tab, setTab] = useState('overview')
   const [data, setData] = useState({ services: [], appointments: [], reviews: [], clients: [], campaigns: [], ai_conversations: [] })
   const [loading, setLoading] = useState(true)
@@ -22,11 +33,12 @@ export default function Dashboard({ salon, onLogout }) {
   const [aiLoading, setAiLoading] = useState(false)
   const [ghlKey, setGhlKey] = useState('')
 
-  useEffect(() => {
-    load()
-  }, [salon.id])
+  if (!salon) return <div style={{ minHeight: '100vh', background: '#080808' }} />
+
+  useEffect(() => { if (salon?.id) load() }, [salon?.id])
 
   const load = async () => {
+    if (!salon?.id) return
     const [sv, ap, rv, cl, cp, ai] = await Promise.all([
       sb().from('salon_services').select('*').eq('salon_id', salon.id).order('sort_order'),
       sb().from('appointments').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(100),
@@ -133,7 +145,7 @@ export default function Dashboard({ salon, onLogout }) {
             <Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial'} />
             <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>{salon.subscription_status}</span>
           </div>
-          <button onClick={onLogout} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center' }}>Log Out</button>
+          <button onClick={() => { localStorage.removeItem('sm_salon'); router.push('/') }} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center' }}>Log Out</button>
         </div>
       </div>
 

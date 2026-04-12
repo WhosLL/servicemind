@@ -1,42 +1,24 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { sb } from '../lib/supabase'
 import './globals.css'
-import Dashboard from './dashboard/page'
-import Onboard from './onboard/page'
-import Login from './login/page'
 
 export default function App() {
-  const [view, setView] = useState('home')
-  const [salon, setSalon] = useState(null)
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     try {
       const s = localStorage.getItem('sm_salon')
-      if (s) { setSalon(JSON.parse(s)); setView('dashboard') }
+      if (s) router.push('/dashboard')
     } catch {}
   }, [])
 
-  const login = (s) => {
-    setSalon(s)
-    localStorage.setItem('sm_salon', JSON.stringify(s))
-    setView('dashboard')
-  }
-  const logout = () => {
-    setSalon(null)
-    localStorage.removeItem('sm_salon')
-    setView('home')
-  }
-
   if (!mounted) return <div style={{ minHeight: '100vh', background: '#080808' }} />
-  if (view === 'dashboard' && salon) return <Dashboard salon={salon} onLogout={logout} />
-  if (view === 'onboard') return <Onboard onBack={() => setView('home')} onComplete={login} />
-  if (view === 'login') return <Login onBack={() => setView('home')} onLogin={login} />
-  return <Home onStart={() => setView('onboard')} onLogin={() => setView('login')} />
+  return <Home onStart={() => router.push('/onboard')} onLogin={() => router.push('/login')} />
 }
-
 function Home({ onStart, onLogin }) {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
