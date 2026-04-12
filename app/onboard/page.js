@@ -69,7 +69,7 @@ export default function Onboard() {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', instagram: '', city: '', state: '', address: '', salon_type: 'barbershop', passcode: '' })
-  const [svcs, setSvcs] = useState([{ name: '', price: '', duration: '30' }])
+  const [svcs, setSvcs] = useState([{ name: '', items: [{ name: '', price: '', duration: '30' }] }])
   const [hours, setHours] = useState({ mon: { open: '8:00 AM', close: '6:00 PM' }, tue: { open: '8:00 AM', close: '6:00 PM' }, wed: { open: '8:00 AM', close: '6:00 PM' }, thu: { open: '8:00 AM', close: '6:00 PM' }, fri: null, sat: null, sun: null })
 
   const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
@@ -83,7 +83,16 @@ export default function Onboard() {
       const { data: sd, error: se } = await sb().from('salons').insert([{ ...info, hours, slug, subscription_status: 'trial', subscription_tier: 'basic', monthly_rate: 150, onboarded: true, onboarded_at: new Date().toISOString() }]).select()
       if (se) throw se
       const salon = sd[0]
-      await sb().from('salon_services').insert(svcs.filter(s => s.name.trim()).map((s, i) => ({ salon_id: salon.id, name: s.name.trim(), price: parseFloat(s.price) || 0, duration: parseInt(s.duration) || 30, category: 'core', sort_order: i, is_active: true })))
+      const svcRows = []
+      let order = 0
+      for (const cat of svcs) {
+        for (const item of cat.items) {
+          if (item.name.trim()) {
+            svcRows.push({ salon_id: salon.id, name: item.name.trim(), price: parseFloat(item.price) || 0, duration: parseInt(item.duration) || 30, category: cat.name.trim() || 'General', sort_order: order++, is_active: true })
+          }
+        }
+      }
+      if (svcRows.length) await sb().from('salon_services').insert(svcRows)
       await sb().from('salon_campaigns').insert(CAMPAIGNS(salon.id))
       localStorage.setItem('sm_salon', JSON.stringify(salon))
       setStep(5)
@@ -124,54 +133,76 @@ export default function Onboard() {
     </Wrap>
   )
 
-  const addSvc = () => setSvcs(prev => [...prev, { name: '', price: '', duration: '30' }])
-  const removeSvc = (i) => setSvcs(prev => prev.filter((_, idx) => idx !== i))
-  const updateSvc = (i, key, val) => setSvcs(prev => { const u = [...prev]; u[i] = { ...u[i], [key]: val }; return u })
+  // categories: [{ name: string, items: [{ name, price, duration }] }]
+  const addCategory = () => setSvcs(prev => [...prev, { name: '', items: [{ name: '', price: '', duration: '30' }] }])
+  const removeCategory = (ci) => setSvcs(prev => prev.filter((_, i) => i !== ci))
+  const updateCategory = (ci, val) => setSvcs(prev => { const u = [...prev]; u[ci] = { ...u[ci], name: val }; return u })
+  const addItem = (ci) => setSvcs(prev => { const u = [...prev]; u[ci] = { ...u[ci], items: [...u[ci].items, { name: '', price: '', duration: '30' }] }; return u })
+  const removeItem = (ci, ii) => setSvcs(prev => { const u = [...prev]; u[ci] = { ...u[ci], items: u[ci].items.filter((_, i) => i !== ii) }; return u })
+  const updateItem = (ci, ii, key, val) => setSvcs(prev => { const u = [...prev]; const items = [...u[ci].items]; items[ii] = { ...items[ii], [key]: val }; u[ci] = { ...u[ci], items }; return u })
 
   if (step === 2) return (
-    <Wrap {...wp} title="Your" italic="Services." sub="Add every service you offer. You can always edit these later from your dashboard."
+    <Wrap {...wp} title="Your" italic="Services." sub="Group your services by category. Works for any salon type."
       onNext={() => {
-        const valid = svcs.filter(s => s.name.trim())
-        if (!valid.length) { setErr('Add at least one service.'); return }
-        setSvcs(valid)
+        const hasService = svcs.some(cat => cat.items.some(s => s.name.trim()))
+        if (!hasService) { setErr('Add at least one service.'); return }
         setErr(''); setStep(3)
       }}>
-      <div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 36px', gap: 8, marginBottom: 8, padding: '0 4px' }}>
-          <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Service Name</span>
-          <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Price</span>
-          <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Mins</span>
-          <span />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {svcs.map((svc, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 36px', gap: 8, alignItems: 'center' }}>
-              <input className="input" placeholder="e.g. Haircut & Beard Combo" value={svc.name}
-                onChange={e => updateSvc(i, 'name', e.target.value)}
-                style={{ padding: '12px 14px', fontSize: 13 }} />
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--gold)', fontSize: 12, pointerEvents: 'none' }}>$</span>
-                <input className="input" type="number" placeholder="0" value={svc.price}
-                  onChange={e => updateSvc(i, 'price', e.target.value)}
-                  style={{ padding: '12px 10px 12px 22px', fontSize: 13, textAlign: 'right' }} />
-              </div>
-              <input className="input" type="number" placeholder="30" value={svc.duration}
-                onChange={e => updateSvc(i, 'duration', e.target.value)}
-                style={{ padding: '12px 10px', fontSize: 13, textAlign: 'center' }} />
-              <button onClick={() => removeSvc(i)} disabled={svcs.length === 1}
-                style={{ background: 'none', border: '1px solid var(--border-dim)', color: 'var(--muted)', width: 36, height: 36, cursor: svcs.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: svcs.length === 1 ? 0.3 : 1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {svcs.map((cat, ci) => (
+          <div key={ci} style={{ border: '1px solid var(--border-dim)', background: 'var(--dark-3)' }}>
+            {/* Category header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(201,168,76,0.04)' }}>
+              <input
+                className="input"
+                placeholder="Category name (e.g. Haircuts, Nails, Add-Ons)"
+                value={cat.name}
+                onChange={e => updateCategory(ci, e.target.value)}
+                style={{ padding: '8px 12px', fontSize: 12, fontWeight: 500, flex: 1, letterSpacing: '.05em' }}
+              />
+              <button onClick={() => removeCategory(ci)} disabled={svcs.length === 1}
+                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: svcs.length === 1 ? 'not-allowed' : 'pointer', fontSize: 18, padding: '0 4px', opacity: svcs.length === 1 ? 0.3 : 0.6, flexShrink: 0 }}>
                 ×
               </button>
             </div>
-          ))}
-        </div>
-        <button onClick={addSvc} className="btn-ghost"
-          style={{ marginTop: 16, width: '100%', padding: '12px', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase' }}>
-          + Add Service
+            {/* Service rows */}
+            <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, padding: '0 2px 4px' }}>
+                <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Service</span>
+                <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Price</span>
+                <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Mins</span>
+                <span />
+              </div>
+              {cat.items.map((svc, ii) => (
+                <div key={ii} style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, alignItems: 'center' }}>
+                  <input className="input" placeholder="Service name" value={svc.name}
+                    onChange={e => updateItem(ci, ii, 'name', e.target.value)}
+                    style={{ padding: '10px 12px', fontSize: 12 }} />
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--gold)', fontSize: 11, pointerEvents: 'none' }}>$</span>
+                    <input className="input" type="number" placeholder="0" value={svc.price}
+                      onChange={e => updateItem(ci, ii, 'price', e.target.value)}
+                      style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
+                  </div>
+                  <input className="input" type="number" placeholder="30" value={svc.duration}
+                    onChange={e => updateItem(ci, ii, 'duration', e.target.value)}
+                    style={{ padding: '10px 8px', fontSize: 12, textAlign: 'center' }} />
+                  <button onClick={() => removeItem(ci, ii)} disabled={cat.items.length === 1}
+                    style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: cat.items.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, opacity: cat.items.length === 1 ? 0.2 : 0.5, padding: 0 }}>
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button onClick={() => addItem(ci)} style={{ background: 'none', border: '1px dashed var(--border-dim)', color: 'var(--muted)', padding: '8px', fontSize: 11, cursor: 'pointer', letterSpacing: '.15em', textTransform: 'uppercase', marginTop: 2 }}>
+                + Add Service
+              </button>
+            </div>
+          </div>
+        ))}
+        <button onClick={addCategory} className="btn-ghost"
+          style={{ width: '100%', padding: '13px', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase' }}>
+          + Add Category
         </button>
-        <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 12, lineHeight: 1.7 }}>
-          Add as many as you offer. Price and duration can be edited anytime from your dashboard.
-        </p>
       </div>
     </Wrap>
   )
