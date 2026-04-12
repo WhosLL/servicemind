@@ -1,15 +1,17 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { sb } from '../../lib/supabase'
 import '../globals.css'
 
 export default function Login({ onBack, onLogin }) {
-  const [shopName, setShopName] = useState('')
-  const [passcode, setPasscode] = useState('')
+  const shopRef = useRef(null)
+  const passRef = useRef(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
   const go = async () => {
+    const shopName = shopRef.current?.value?.trim()
+    const passcode = passRef.current?.value?.trim()
     if (!shopName || !passcode) { setErr('Enter your shop name and passcode.'); return }
     setLoading(true); setErr('')
     const { data, error } = await sb().from('salons').select('*').ilike('shop_name', shopName).eq('passcode', passcode)
@@ -31,10 +33,10 @@ export default function Login({ onBack, onLogin }) {
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Shop Name</label>
             <input
+              ref={shopRef}
               className="input"
               placeholder="e.g. Boo Cutz"
-              value={shopName}
-              onChange={e => setShopName(e.target.value)}
+              defaultValue=""
               onKeyDown={e => e.key === 'Enter' && go()}
               autoComplete="off"
             />
@@ -42,11 +44,11 @@ export default function Login({ onBack, onLogin }) {
           <div style={{ marginBottom: 20 }}>
             <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Passcode</label>
             <input
+              ref={passRef}
               className="input"
               type="password"
               placeholder="Your passcode"
-              value={passcode}
-              onChange={e => setPasscode(e.target.value)}
+              defaultValue=""
               onKeyDown={e => e.key === 'Enter' && go()}
             />
           </div>
