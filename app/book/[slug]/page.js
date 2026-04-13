@@ -58,6 +58,7 @@ export default function BookingPage({ params }) {
   const [selectedService, setSelectedService] = useState(null)
   const [selectedDay, setSelectedDay] = useState(null)
   const [selectedTime, setSelectedTime] = useState(null)
+  const [selectedAddons, setSelectedAddons] = useState([])
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
@@ -87,8 +88,8 @@ export default function BookingPage({ params }) {
       client_name: name.trim(),
       client_phone: phone.trim(),
       service_id: selectedService.id,
-      service_name: selectedService.name,
-      total_price: selectedService.price,
+      service_name: selectedAddons.length > 0 ? `${selectedService.name} + ${selectedAddons.map(a => a.name).join(', ')}` : selectedService.name,
+      total_price: Number(selectedService.price) + selectedAddons.reduce((s, a) => s + Number(a.price), 0),
       appointment_date: dateStr,
       appointment_time: selectedTime,
       notes: notes.trim() || null,
@@ -98,7 +99,9 @@ export default function BookingPage({ params }) {
     setSubmitting(false)
   }
 
-  const categories = [...new Set(services.map(s => s.category))].filter(Boolean)
+  const mainServices = services.filter(s => !s.is_addon)
+  const addonServices = services.filter(s => s.is_addon)
+  const mainCategories = [...new Set(mainServices.map(s => s.category))].filter(Boolean)
   const availableDays = salon ? getNext14Days(salon.hours) : []
   const slots = selectedDay ? getSlots(selectedDay.hours) : []
 
@@ -179,10 +182,10 @@ export default function BookingPage({ params }) {
       <div style={S.container}>
         {/* Progress */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 40 }}>
-          {['Service', 'Date & Time', 'Your Info'].map((label, i) => (
+          {['Service', 'Add-Ons', 'Date & Time', 'Your Info'].map((label, i) => (
             <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ height: 2, background: i < step ? gold : 'var(--border-dim)', marginBottom: 6, transition: 'background .3s' }} />
-              <div style={{ fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', color: i < step ? gold : 'var(--muted)' }}>{label}</div>
+              <div style={{ height: 2, background: (i === 0 && step >= 1) || (i === 1 && step >= 1.5) || (i === 2 && step >= 2) || (i === 3 && step >= 3) ? gold : 'var(--border-dim)', marginBottom: 6, transition: 'background .3s' }} />
+              <div style={{ fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', color: (i === 0 && step >= 1) || (i === 1 && step >= 1.5) || (i === 2 && step >= 2) || (i === 3 && step >= 3) ? gold : 'var(--muted)' }}>{label}</div>
             </div>
           ))}
         </div>
@@ -193,7 +196,7 @@ export default function BookingPage({ params }) {
             <h2 className="cormorant" style={{ fontSize: 36, fontWeight: 300, marginBottom: 28 }}>
               Choose your <em style={{ color: gold, fontStyle: 'italic' }}>service.</em>
             </h2>
-            {categories.map(cat => (
+            {mainCategories.map(cat => (
               <div key={cat} style={{ marginBottom: 24 }}>
                 <div style={{ fontSize: 9, letterSpacing: '.3em', textTransform: 'uppercase', color: gold, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ flex: 1, height: 1, background: 'var(--border-dim)' }} />
@@ -201,8 +204,8 @@ export default function BookingPage({ params }) {
                   <span style={{ flex: 1, height: 1, background: 'var(--border-dim)' }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {services.filter(s => s.category === cat).map(svc => (
-                    <button key={svc.id} onClick={() => { setSelectedService(svc); setStep(2) }}
+                  {mainServices.filter(s => s.category === cat).map(svc => (
+                    <button key={svc.id} onClick={() => { setSelectedService(svc); setSelectedAddons([]); addonServices.length > 0 ? setStep(1.5) : setStep(2) }}
                       style={{ background: selectedService?.id === svc.id ? 'rgba(201,168,76,.08)' : 'var(--dark)', border: `1px solid ${selectedService?.id === svc.id ? gold : 'var(--border-dim)'}`, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all .2s', width: '100%', textAlign: 'left' }}>
                       <div>
                         <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{svc.name}</div>
@@ -217,10 +220,51 @@ export default function BookingPage({ params }) {
           </div>
         )}
 
+        {/* Step 1.5: Add-Ons */}
+        {step === 1.5 && (
+          <div>
+            <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 11, cursor: 'pointer', marginBottom: 20, padding: 0, letterSpacing: '.1em' }}>← Back</button>
+            <h2 className="cormorant" style={{ fontSize: 36, fontWeight: 300, marginBottom: 8 }}>
+              Add <em style={{ color: gold, fontStyle: 'italic' }}>extras?</em>
+            </h2>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 28 }}>
+              {selectedService.name} · ${selectedService.price} · {selectedService.duration_minutes} min
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 32 }}>
+              {addonServices.map(addon => {
+                const checked = selectedAddons.some(a => a.id === addon.id)
+                return (
+                  <button key={addon.id} onClick={() => setSelectedAddons(prev => checked ? prev.filter(a => a.id !== addon.id) : [...prev, addon])}
+                    style={{ background: checked ? 'rgba(201,168,76,.08)' : 'var(--dark)', border: `1px solid ${checked ? gold : 'var(--border-dim)'}`, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'all .2s', width: '100%', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ width: 18, height: 18, border: `1px solid ${checked ? gold : 'var(--border-dim)'}`, background: checked ? gold : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {checked && <span style={{ color: '#080808', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, color: 'var(--text)' }}>{addon.name}</div>
+                        {addon.duration_minutes > 0 && <div style={{ fontSize: 11, color: 'var(--muted)' }}>+{addon.duration_minutes} min</div>}
+                      </div>
+                    </div>
+                    <div className="cormorant" style={{ fontSize: 20, color: gold, fontWeight: 300 }}>+${addon.price}</div>
+                  </button>
+                )
+              })}
+            </div>
+            {selectedAddons.length > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
+                Total: <span style={{ color: gold }}>${Number(selectedService.price) + selectedAddons.reduce((sum, a) => sum + Number(a.price), 0)}</span>
+              </div>
+            )}
+            <button onClick={() => setStep(2)} className="btn-gold" style={{ padding: '16px 40px' }}>
+              {selectedAddons.length > 0 ? `Continue with ${selectedAddons.length} add-on${selectedAddons.length > 1 ? 's' : ''} →` : 'Continue without add-ons →'}
+            </button>
+          </div>
+        )}
+
         {/* Step 2: Pick Date & Time */}
         {step === 2 && (
           <div>
-            <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 11, cursor: 'pointer', marginBottom: 20, padding: 0, letterSpacing: '.1em' }}>← Back</button>
+            <button onClick={() => addonServices.length > 0 ? setStep(1.5) : setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 11, cursor: 'pointer', marginBottom: 20, padding: 0, letterSpacing: '.1em' }}>← Back</button>
             <h2 className="cormorant" style={{ fontSize: 36, fontWeight: 300, marginBottom: 8 }}>
               Pick a <em style={{ color: gold, fontStyle: 'italic' }}>date & time.</em>
             </h2>
@@ -273,11 +317,23 @@ export default function BookingPage({ params }) {
 
             {/* Summary */}
             <div style={{ background: 'rgba(201,168,76,.04)', border: `1px solid ${gold}`, padding: '16px 20px', marginBottom: 28 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                 <span style={{ color: 'var(--muted)' }}>{selectedService.name}</span>
                 <span style={{ color: gold }}>${selectedService.price}</span>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{formatDate(selectedDay.date)} at {selectedTime}</div>
+              {selectedAddons.map(a => (
+                <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                  <span style={{ color: 'var(--muted)' }}>+ {a.name}</span>
+                  <span style={{ color: 'var(--muted)' }}>${a.price}</span>
+                </div>
+              ))}
+              {selectedAddons.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid var(--border-dim)', paddingTop: 8, marginTop: 8 }}>
+                  <span style={{ color: 'var(--muted)' }}>Total</span>
+                  <span style={{ color: gold, fontWeight: 500 }}>${Number(selectedService.price) + selectedAddons.reduce((s, a) => s + Number(a.price), 0)}</span>
+                </div>
+              )}
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>{formatDate(selectedDay.date)} at {selectedTime}</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
@@ -299,7 +355,7 @@ export default function BookingPage({ params }) {
 
             <button onClick={submit} disabled={submitting} className="btn-gold"
               style={{ width: '100%', textAlign: 'center', padding: '18px', fontSize: 13, opacity: submitting ? .6 : 1 }}>
-              {submitting ? 'Booking...' : `Confirm Booking — $${selectedService.price}`}
+              {submitting ? 'Booking...' : `Confirm Booking — $${Number(selectedService.price) + selectedAddons.reduce((s, a) => s + Number(a.price), 0)}`}
             </button>
             <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 12, textAlign: 'center', lineHeight: 1.7 }}>
               You'll receive a confirmation text. No payment required now — pay at the shop.
