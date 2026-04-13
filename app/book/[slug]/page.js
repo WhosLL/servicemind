@@ -69,6 +69,7 @@ export default function BookingPage({ params }) {
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
+  const [booking, setBooking] = useState(null)
   const [err, setErr] = useState('')
 
   useEffect(() => {
@@ -87,20 +88,36 @@ export default function BookingPage({ params }) {
   const submit = async () => {
     if (!name.trim() || !phone.trim()) { setErr('Please enter your name and phone number.'); return }
     setSubmitting(true); setErr('')
-    const dateStr = selectedDay.date.toISOString().split('T')[0]
-    await sb().from('salon_appointments').insert([{
-      salon_id: salon.id,
-      client_name: name.trim(),
-      client_phone: phone.trim(),
-      service_id: selectedService.id,
-      service_name: selectedAddons.length > 0 ? `${selectedService.name} + ${selectedAddons.map(a => a.name).join(', ')}` : selectedService.name,
-      total_price: Number(selectedService.price) + selectedAddons.reduce((s, a) => s + Number(a.price), 0),
-      appointment_date: dateStr,
-      appointment_time: selectedTime,
-      notes: notes.trim() || null,
-      status: 'confirmed'
-    }])
-    setConfirmed(true)
+    try {
+      const dateStr = new Date(selectedDay.date.getFullYear(), selectedDay.date.getMonth(), selectedDay.date.getDate()).toISOString().split('T')[0]
+      const totalPrice = Number(selectedService.price) + selectedAddons.reduce((s, a) => s + Number(a.price), 0)
+      const { error } = await sb().from('salon_appointments').insert([{
+        salon_id: salon.id,
+        client_name: name.trim(),
+        client_phone: phone.trim(),
+        service_id: selectedService.id,
+        service_name: selectedAddons.length > 0 ? `${selectedService.name} + ${selectedAddons.map(a => a.name).join(', ')}` : selectedService.name,
+        total_price: totalPrice,
+        appointment_date: dateStr,
+        appointment_time: selectedTime,
+        notes: notes.trim() || null,
+        status: 'confirmed'
+      }])
+      if (error) throw error
+      setBooking({
+        serviceName: selectedAddons.length > 0 ? `${selectedService.name} + ${selectedAddons.map(a => a.name).join(', ')}` : selectedService.name,
+        total: Number(selectedService.price) + selectedAddons.reduce((s, a) => s + Number(a.price), 0),
+        date: formatDate(selectedDay.date),
+        time: selectedTime,
+        clientName: name.trim(),
+        clientPhone: phone.trim(),
+        location: [salon.address, salon.city, salon.state].filter(Boolean).join(', ') || `${salon.city}, ${salon.state}`,
+        shopName: salon.shop_name,
+      })
+      setConfirmed(true)
+    } catch (e) {
+      setErr('Booking failed — please try again. (' + (e?.message || 'Unknown error') + ')')
+    }
     setSubmitting(false)
   }
 
@@ -136,21 +153,23 @@ export default function BookingPage({ params }) {
     </div>
   )
 
-  if (confirmed) return (
-    <div style={{ ...S.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+  if (confirmed && booking) return (
+    <div style={{ minHeight: '100vh', background: '#080808', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', maxWidth: 460, padding: '0 24px' }}>
-        <div style={{ fontSize: 56, color: gold, marginBottom: 24 }}>✓</div>
-        <div className="cinzel" style={{ color: gold, fontSize: 12, letterSpacing: '.3em', marginBottom: 16 }}>Booking Confirmed</div>
+        <div style={{ fontSize: 56, color: 'var(--gold)', marginBottom: 24 }}>✓</div>
+        <div className="cinzel" style={{ color: 'var(--gold)', fontSize: 12, letterSpacing: '.3em', marginBottom: 16 }}>Booking Confirmed</div>
         <h2 className="cormorant" style={{ fontSize: 48, fontWeight: 300, lineHeight: 1.1, marginBottom: 20 }}>
-          See you soon,<br /><em style={{ color: gold, fontStyle: 'italic' }}>{name}.</em>
+          See you soon,<br /><em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>{booking.clientName}.</em>
         </h2>
         <div style={{ background: 'var(--dark)', border: '1px solid var(--border-dim)', padding: 24, marginBottom: 24, textAlign: 'left' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
-              ['Service', selectedService.name],
-              ['Date', formatDate(selectedDay.date)],
-              ['Time', selectedTime],
-              ['Location', [salon.address, salon.city, salon.state].filter(Boolean).join(', ') || `${salon.city}, ${salon.state}`],
+              ['Shop', booking.shopName],
+              ['Service', booking.serviceName],
+              ['Total', `$${booking.total}`],
+              ['Date', booking.date],
+              ['Time', booking.time],
+              ['Location', booking.location],
             ].map(([label, value]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
                 <span style={{ color: 'var(--muted)' }}>{label}</span>
@@ -160,7 +179,7 @@ export default function BookingPage({ params }) {
           </div>
         </div>
         <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8 }}>
-          You'll receive a confirmation text at {phone}. We'll remind you 24 hours before your appointment.
+          We'll send a reminder 24 hours before your appointment.
         </p>
       </div>
     </div>
