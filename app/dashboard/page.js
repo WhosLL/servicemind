@@ -10,262 +10,1188 @@ const NAV = [
   { id: 'clients', label: 'Clients' },
   { id: 'reviews', label: 'Reviews' },
   { id: 'campaigns', label: 'Automations' },
-  { id: 'conversations', label: 'Conversations' },
   { id: 'services', label: 'Services' },
-  { id: 'schedule', label: 'Schedule' },
-  { id: 'ai', label: 'AI Advisor' },
-  { id: 'notifications', label: 'Notifications' },
+  { id: 'conversations', label: 'Conversations' },
   { id: 'referrals', label: 'Referrals' },
+  { id: 'schedule', label: 'Schedule' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'ai', label: 'AI Advisor' },
   { id: 'settings', label: 'Settings' },
-  ]
+]
 
 export default function Dashboard() {
-    const router = useRouter()
-    const [salon, setSalon] = useState(null)
-    useEffect(() => {
-          try {
-                  const s = localStorage.getItem('sm_salon')
-                  if (!s) { router.push('/login'); return }
-                  setSalon(JSON.parse(s))
-          } catch { router.push('/login') }
-    }, [])
+  const router = useRouter()
+  const [salon, setSalon] = useState(null)
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem('sm_salon')
+      if (!s) { router.push('/login'); return }
+      setSalon(JSON.parse(s))
+    } catch { router.push('/login') }
+  }, [])
 
   const [tab, setTab] = useState('overview')
-    const [data, setData] = useState({ services: [], appointments: [], reviews: [], clients: [], campaigns: [], ai_conversations: [] })
-    const [loading, setLoading] = useState(true)
-    const [aiQuery, setAiQuery] = useState('')
-    const [aiResponse, setAiResponse] = useState('')
-    const [aiLoading, setAiLoading] = useState(false)
-    const [ghlKey, setGhlKey] = useState('')
-    const [selectedClient, setSelectedClient] = useState(null)
-    const [clientHistory, setClientHistory] = useState([])
-    const [showCustomAutomation, setShowCustomAutomation] = useState(false)
-    const [customAutomation, setCustomAutomation] = useState({ name: '', trigger: 'after_booking', message: '', delay_hours: 0 })
-    const [notifLog, setNotifLog] = useState([])
-    const [scheduleSettings, setScheduleSettings] = useState({ mon: { open: '08:00', close: '18:00', enabled: true }, tue: { open: '08:00', close: '18:00', enabled: true }, wed: { open: '08:00', close: '18:00', enabled: true }, thu: { open: '08:00', close: '18:00', enabled: true }, fri: { open: '08:00', close: '17:00', enabled: true }, sat: { open: '09:00', close: '15:00', enabled: false }, sun: { open: '09:00', close: '15:00', enabled: false }, slot_duration: 30, buffer_minutes: 0, blocked_dates: [] })
-    const [blockDate, setBlockDate] = useState('')
-    const [editingService, setEditingService] = useState(null)
-    const [newService, setNewService] = useState({ name: '', category: 'Haircuts', duration: 45, price: 0, sort_order: 0 })
-    const [conversations, setConversations] = useState([])
-    const [selectedConvo, setSelectedConvo] = useState(null)
-    const [convoReply, setConvoReply] = useState('')
-    const [settingsForm, setSettingsForm] = useState({})
+  const [data, setData] = useState({ services: [], appointments: [], reviews: [], clients: [], campaigns: [], ai_conversations: [], messages: [] })
+  const [loading, setLoading] = useState(true)
+  const [aiQuery, setAiQuery] = useState('')
+  const [aiResponse, setAiResponse] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+
+  // === Settings state ===
+  const [settingsForm, setSettingsForm] = useState({
+    shop_name: '', owner_name: '', phone: '', email: '', city: '', state: '', salon_type: '', passcode: ''
+  })
+  const [settingsSaving, setSettingsSaving] = useState(false)
+
+  // === Conversations state ===
+  const [selectedConvoClient, setSelectedConvoClient] = useState(null)
+  const [convoMessages, setConvoMessages] = useState([])
+  const [convoReply, setConvoReply] = useState('')
+  const [convoLoading, setConvoLoading] = useState(false)
+
+  // === Custom Automation Builder state ===
+  const [showAutomationForm, setShowAutomationForm] = useState(false)
+  const [automationForm, setAutomationForm] = useState({
+    name: '', campaign_type: 'after_booking', message_template: '', delay_hours: 0
+  })
+  const [automationSaving, setAutomationSaving] = useState(false)
+
+  // === Client History state ===
+  const [selectedClient, setSelectedClient] = useState(null)
+  const [clientAppointments, setClientAppointments] = useState([])
+  const [clientHistoryLoading, setClientHistoryLoading] = useState(false)
+
+  // === Services state ===
+  const [showServiceForm, setShowServiceForm] = useState(false)
+  const [serviceForm, setServiceForm] = useState({ name: '', category: 'core', duration_minutes: 30, price: 0 })
+  const [editingService, setEditingService] = useState(null)
+  const [serviceSaving, setServiceSaving] = useState(false)
+
+  // === Schedule state ===
+  const [scheduleSettings, setScheduleSettings] = useState({
+    days: {
+      monday: { enabled: true, open: '09:00', close: '19:00' },
+      tuesday: { enabled: true, open: '09:00', close: '19:00' },
+      wednesday: { enabled: true, open: '09:00', close: '19:00' },
+      thursday: { enabled: true, open: '09:00', close: '19:00' },
+      friday: { enabled: true, open: '09:00', close: '19:00' },
+      saturday: { enabled: true, open: '09:00', close: '17:00' },
+      sunday: { enabled: false, open: '10:00', close: '16:00' },
+    },
+    slot_duration: 30,
+    buffer_minutes: 0,
+    blocked_dates: []
+  })
+  const [newBlockedDate, setNewBlockedDate] = useState('')
+  const [scheduleSaving, setScheduleSaving] = useState(false)
 
   useEffect(() => { if (salon?.id) load() }, [salon?.id])
-    useEffect(() => { if (salon) setSettingsForm({ shop_name: salon.shop_name || '', owner_name: salon.owner_name || '', phone: salon.phone || '', email: salon.email || '', city: salon.city || '', state: salon.state || '', salon_type: salon.salon_type || '', passcode: salon.passcode || '' }) }, [salon])
+
+  // Populate settings form when salon loads
+  useEffect(() => {
+    if (salon) {
+      setSettingsForm({
+        shop_name: salon.shop_name || '',
+        owner_name: salon.owner_name || '',
+        phone: salon.phone || '',
+        email: salon.email || '',
+        city: salon.city || '',
+        state: salon.state || '',
+        salon_type: salon.salon_type || '',
+        passcode: salon.passcode || ''
+      })
+      if (salon.schedule_settings) {
+        try {
+          const parsed = typeof salon.schedule_settings === 'string' ? JSON.parse(salon.schedule_settings) : salon.schedule_settings
+          setScheduleSettings(prev => ({ ...prev, ...parsed }))
+        } catch {}
+      }
+    }
+  }, [salon])
 
   if (!salon) return <div style={{ minHeight: '100vh', background: '#080808' }} />
 
   const load = async () => {
-        if (!salon?.id) return
-        const [sv, ap, rv, cl, cp, ai] = await Promise.all([
-                sb().from('salon_services').select('*').eq('salon_id', salon.id).order('sort_order'),
-                sb().from('appointments').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(100),
-                sb().from('salon_reviews').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }),
-                sb().from('clients').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(100),
-                sb().from('salon_campaigns').select('*').eq('salon_id', salon.id).order('campaign_type'),
-                sb().from('ai_conversations').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(20),
-              ])
-        setData({ services: sv.data || [], appointments: ap.data || [], reviews: rv.data || [], clients: cl.data || [], campaigns: cp.data || [], ai_conversations: ai.data || [] })
-        if (salon.schedule_settings) { try { setScheduleSettings(typeof salon.schedule_settings === 'string' ? JSON.parse(salon.schedule_settings) : salon.schedule_settings) } catch {} }
-        const events = []
-              ;(ap.data || []).slice(0, 5).forEach(a => events.push({ type: 'booking', text: `New booking: ${a.client_name} for ${a.service_name}`, time: a.created_at }))
-        ;(rv.data || []).slice(0, 3).forEach(r => events.push({ type: 'review', text: `${r.author_name} left a ${r.stars}-star review`, time: r.created_at }))
-        ;(cp.data || []).filter(c => c.is_active).forEach(c => events.push({ type: 'automation', text: `Automation active: ${c.name}`, time: c.updated_at || c.created_at }))
-        events.sort((a, b) => new Date(b.time) - new Date(a.time))
-        setNotifLog(events.slice(0, 20))
-        setConversations((cl.data || []).filter(c => c.phone).map(c => ({ client: c, messages: [], lastMessage: c.last_visit_at ? `Last visit: ${new Date(c.last_visit_at).toLocaleDateString()}` : 'No messages yet' })))
-        setLoading(false)
+    if (!salon?.id) return
+    const [sv, ap, rv, cl, cp, ai] = await Promise.all([
+      sb().from('salon_services').select('*').eq('salon_id', salon.id).order('sort_order'),
+      sb().from('appointments').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(100),
+      sb().from('salon_reviews').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }),
+      sb().from('clients').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(100),
+      sb().from('salon_campaigns').select('*').eq('salon_id', salon.id).order('campaign_type'),
+      sb().from('ai_conversations').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(50),
+    ])
+    setData({
+      services: sv.data || [],
+      appointments: ap.data || [],
+      reviews: rv.data || [],
+      clients: cl.data || [],
+      campaigns: cp.data || [],
+      ai_conversations: ai.data || [],
+      messages: ai.data || []
+    })
+    setLoading(false)
   }
 
-  const deleteReview = async (id) => { if (!window.confirm('Remove this review?')) return; await sb().from('salon_reviews').update({ is_visible: false }).eq('id', id); setData(d => ({ ...d, reviews: d.reviews.filter(r => r.id !== id) })) }
-  const toggleCampaign = async (c) => { const upd = { ...c, is_active: !c.is_active }; await sb().from('salon_campaigns').update({ is_active: upd.is_active }).eq('id', c.id); setData(d => ({ ...d, campaigns: d.campaigns.map(x => x.id === c.id ? upd : x) })) }
-  const updateApptStatus = async (id, status) => { await sb().from('appointments').update({ status }).eq('id', id); setData(d => ({ ...d, appointments: d.appointments.map(a => a.id === id ? { ...a, status } : a) })) }
-  const loadClientHistory = async (client) => { setSelectedClient(client); const { data: appts } = await sb().from('appointments').select('*').eq('salon_id', salon.id).eq('client_phone', client.phone).order('appointment_date', { ascending: false }).limit(50); setClientHistory(appts || []) }
-  const saveSchedule = async () => { await sb().from('salons').update({ schedule_settings: scheduleSettings }).eq('id', salon.id); const u = { ...salon, schedule_settings: scheduleSettings }; setSalon(u); localStorage.setItem('sm_salon', JSON.stringify(u)); alert('Schedule saved!') }
-  const addService = async () => { if (!newService.name.trim()) return; const { data: ins } = await sb().from('salon_services').insert([{ salon_id: salon.id, ...newService }]).select(); if (ins) setData(d => ({ ...d, services: [...d.services, ...ins] })); setNewService({ name: '', category: 'Haircuts', duration: 45, price: 0, sort_order: 0 }) }
-  const deleteService = async (id) => { if (!window.confirm('Delete this service?')) return; await sb().from('salon_services').delete().eq('id', id); setData(d => ({ ...d, services: d.services.filter(s => s.id !== id) })) }
-  const updateService = async (svc) => { await sb().from('salon_services').update({ name: svc.name, category: svc.category, duration: svc.duration, price: svc.price, sort_order: svc.sort_order }).eq('id', svc.id); setData(d => ({ ...d, services: d.services.map(s => s.id === svc.id ? svc : s) })); setEditingService(null) }
-  const saveCustomAutomation = async () => { if (!customAutomation.name.trim() || !customAutomation.message.trim()) return; const { data: ins } = await sb().from('salon_campaigns').insert([{ salon_id: salon.id, name: customAutomation.name, campaign_type: customAutomation.trigger, message_template: customAutomation.message, is_active: true }]).select(); if (ins) setData(d => ({ ...d, campaigns: [...d.campaigns, ...ins] })); setCustomAutomation({ name: '', trigger: 'after_booking', message: '', delay_hours: 0 }); setShowCustomAutomation(false) }
-  const saveSettings = async () => { await sb().from('salons').update(settingsForm).eq('id', salon.id); const u = { ...salon, ...settingsForm }; setSalon(u); localStorage.setItem('sm_salon', JSON.stringify(u)); alert('Settings saved!') }
+  // ========== ACTIONS ==========
+
+  const deleteReview = async (id) => {
+    if (!window.confirm('Remove this review from your page?')) return
+    await sb().from('salon_reviews').update({ is_visible: false }).eq('id', id)
+    setData(d => ({ ...d, reviews: d.reviews.filter(r => r.id !== id) }))
+  }
+  const toggleCampaign = async (c) => {
+    const upd = { ...c, is_active: !c.is_active }
+    await sb().from('salon_campaigns').update({ is_active: upd.is_active }).eq('id', c.id)
+    setData(d => ({ ...d, campaigns: d.campaigns.map(x => x.id === c.id ? upd : x) }))
+  }
+  const updateApptStatus = async (id, status) => {
+    await sb().from('appointments').update({ status }).eq('id', id)
+    setData(d => ({ ...d, appointments: d.appointments.map(a => a.id === id ? { ...a, status } : a) }))
+  }
+
+  // --- Settings save ---
+  const saveSettings = async () => {
+    setSettingsSaving(true)
+    try {
+      await sb().from('salons').update({
+        shop_name: settingsForm.shop_name,
+        owner_name: settingsForm.owner_name,
+        phone: settingsForm.phone,
+        email: settingsForm.email,
+        city: settingsForm.city,
+        state: settingsForm.state,
+        salon_type: settingsForm.salon_type,
+        passcode: settingsForm.passcode
+      }).eq('id', salon.id)
+      const updated = { ...salon, ...settingsForm }
+      setSalon(updated)
+      localStorage.setItem('sm_salon', JSON.stringify(updated))
+      alert('Settings saved!')
+    } catch { alert('Error saving settings.') }
+    setSettingsSaving(false)
+  }
+
+  // --- Conversation actions ---
+  const loadConversation = async (client) => {
+    setSelectedConvoClient(client)
+    setConvoLoading(true)
+    setConvoMessages([])
+    const { data: convos } = await sb().from('ai_conversations').select('*')
+      .eq('salon_id', salon.id)
+      .order('created_at', { ascending: true })
+      .limit(50)
+    const relevant = (convos || []).filter(c => {
+      const msgs = c.messages || []
+      const meta = c.metadata || {}
+      return meta.client_phone === client.phone ||
+        msgs.some(m => m.client_phone === client.phone) ||
+        c.client_phone === client.phone
+    })
+    setConvoMessages(relevant)
+    setConvoLoading(false)
+  }
+  const sendConvoReply = async () => {
+    if (!convoReply.trim() || !selectedConvoClient) return
+    const msg = {
+      salon_id: salon.id,
+      type: 'sms_reply',
+      channel: 'sms',
+      client_phone: selectedConvoClient.phone,
+      messages: [{ role: 'assistant', content: convoReply }],
+      resolved: false
+    }
+    await sb().from('ai_conversations').insert([msg])
+    setConvoMessages(prev => [...prev, { ...msg, created_at: new Date().toISOString() }])
+    setConvoReply('')
+  }
+
+  // --- Custom Automation Builder ---
+  const saveCustomAutomation = async () => {
+    if (!automationForm.name.trim() || !automationForm.message_template.trim()) return
+    setAutomationSaving(true)
+    try {
+      const { data: inserted } = await sb().from('salon_campaigns').insert([{
+        salon_id: salon.id,
+        name: automationForm.name,
+        campaign_type: automationForm.campaign_type,
+        message_template: automationForm.message_template,
+        delay_hours: parseInt(automationForm.delay_hours) || 0,
+        is_active: false
+      }]).select()
+      if (inserted && inserted[0]) {
+        setData(d => ({ ...d, campaigns: [...d.campaigns, inserted[0]] }))
+      }
+      setAutomationForm({ name: '', campaign_type: 'after_booking', message_template: '', delay_hours: 0 })
+      setShowAutomationForm(false)
+      alert('Automation created!')
+    } catch { alert('Error creating automation.') }
+    setAutomationSaving(false)
+  }
+
+  // --- Client History ---
+  const loadClientHistory = async (client) => {
+    setSelectedClient(client)
+    setClientHistoryLoading(true)
+    const { data: appts } = await sb().from('appointments').select('*')
+      .eq('salon_id', salon.id)
+      .eq('client_phone', client.phone)
+      .order('appointment_date', { ascending: false })
+    setClientAppointments(appts || [])
+    setClientHistoryLoading(false)
+  }
+
+  // --- Service Management ---
+  const saveService = async () => {
+    if (!serviceForm.name.trim()) return
+    setServiceSaving(true)
+    try {
+      if (editingService) {
+        await sb().from('salon_services').update({
+          name: serviceForm.name,
+          category: serviceForm.category,
+          duration_minutes: parseInt(serviceForm.duration_minutes) || 30,
+          price: parseFloat(serviceForm.price) || 0
+        }).eq('id', editingService.id)
+        setData(d => ({
+          ...d,
+          services: d.services.map(s => s.id === editingService.id ? { ...s, ...serviceForm, duration_minutes: parseInt(serviceForm.duration_minutes) || 30, price: parseFloat(serviceForm.price) || 0 } : s)
+        }))
+        setEditingService(null)
+      } else {
+        const maxOrder = data.services.reduce((max, s) => Math.max(max, s.sort_order || 0), -1)
+        const { data: inserted } = await sb().from('salon_services').insert([{
+          salon_id: salon.id,
+          name: serviceForm.name,
+          category: serviceForm.category,
+          duration_minutes: parseInt(serviceForm.duration_minutes) || 30,
+          price: parseFloat(serviceForm.price) || 0,
+          is_addon: serviceForm.category === 'addon',
+          sort_order: maxOrder + 1
+        }]).select()
+        if (inserted && inserted[0]) {
+          setData(d => ({ ...d, services: [...d.services, inserted[0]] }))
+        }
+      }
+      setServiceForm({ name: '', category: 'core', duration_minutes: 30, price: 0 })
+      setShowServiceForm(false)
+    } catch { alert('Error saving service.') }
+    setServiceSaving(false)
+  }
+  const deleteService = async (id) => {
+    if (!window.confirm('Delete this service?')) return
+    await sb().from('salon_services').delete().eq('id', id)
+    setData(d => ({ ...d, services: d.services.filter(s => s.id !== id) }))
+  }
+  const moveService = async (id, direction) => {
+    const sorted = [...data.services].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    const idx = sorted.findIndex(s => s.id === id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+    const temp = sorted[idx].sort_order
+    sorted[idx].sort_order = sorted[swapIdx].sort_order
+    sorted[swapIdx].sort_order = temp
+    await sb().from('salon_services').update({ sort_order: sorted[idx].sort_order }).eq('id', sorted[idx].id)
+    await sb().from('salon_services').update({ sort_order: sorted[swapIdx].sort_order }).eq('id', sorted[swapIdx].id)
+    setData(d => ({ ...d, services: sorted }))
+  }
+
+  // --- Schedule save ---
+  const saveSchedule = async () => {
+    setScheduleSaving(true)
+    try {
+      await sb().from('salons').update({ schedule_settings: scheduleSettings }).eq('id', salon.id)
+      const updated = { ...salon, schedule_settings: scheduleSettings }
+      setSalon(updated)
+      localStorage.setItem('sm_salon', JSON.stringify(updated))
+      alert('Schedule saved!')
+    } catch { alert('Error saving schedule.') }
+    setScheduleSaving(false)
+  }
+
+  // --- AI Advisor ---
   const askAi = async (overrideQuery) => {
-        const query = overrideQuery || aiQuery; if (!query.trim()) return; setAiLoading(true); setAiResponse('')
-        const { appointments, reviews, clients, campaigns } = data; const today = new Date().toISOString().split('T')[0]
-        const todayCount = appointments.filter(a => a.appointment_date === today).length
-        const rev = appointments.filter(a => a.status === 'completed').reduce((s, a) => s + (a.total_price || 0), 0)
-        const avgR = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : 'none'
-        const ctx = `Shop: ${salon.shop_name} | Owner: ${salon.owner_name} | Type: ${salon.salon_type} | City: ${salon.city}, ${salon.state} | Today: ${todayCount} appts | Clients: ${clients.length} | Revenue: $${rev} | Avg rating: ${avgR} | Active automations: ${campaigns.filter(c => c.is_active).length}`
-        try {
-                const res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: `You are the AI business advisor for ${salon.shop_name}, a ${salon.salon_type} in ${salon.city}, ${salon.state}. Give direct, actionable advice. Context: ${ctx}`, messages: [{ role: 'user', content: query }] }) })
-                const d = await res.json(); setAiResponse(d.content?.map(c => c.text || '').join('') || 'Unable to respond.')
-                await sb().from('ai_conversations').insert([{ salon_id: salon.id, type: 'advisor', channel: 'web', messages: [{ role: 'user', content: query }, { role: 'assistant', content: d.content?.map(c => c.text || '').join('') }], resolved: true }])
-        } catch { setAiResponse('AI advisor is temporarily unavailable.') }
-        setAiLoading(false)
+    const query = overrideQuery || aiQuery
+    if (!query.trim()) return
+    setAiLoading(true); setAiResponse('')
+    const { appointments, reviews, clients, campaigns } = data
+    const today = new Date().toISOString().split('T')[0]
+    const todayAppts = appointments.filter(a => a.appointment_date === today).length
+    const revenue = appointments.filter(a => a.status === 'completed').reduce((s, a) => s + (a.total_price || 0), 0)
+    const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : 'none'
+    const context = `Shop: ${salon.shop_name} | Owner: ${salon.owner_name} | Type: ${salon.salon_type} | City: ${salon.city}, ${salon.state} | Today's appointments: ${todayAppts} | Total clients: ${clients.length} | Completed appointments revenue: $${revenue} | Avg review rating: ${avgRating} | Active campaigns: ${campaigns.filter(c => c.is_active).length}`
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: `You are the AI business advisor for ${salon.shop_name}, a ${salon.salon_type} owned by ${salon.owner_name} in ${salon.city}, ${salon.state}. You have access to their business data and your job is to give direct, actionable advice to help them grow. Be specific, concise, and confident. Never hedge. Business context: ${context}`,
+          messages: [{ role: 'user', content: query }]
+        })
+      })
+      const d = await res.json()
+      const text = d.content?.map(c => c.text || '').join('') || 'Unable to get a response right now.'
+      setAiResponse(text)
+      await sb().from('ai_conversations').insert([{ salon_id: salon.id, type: 'advisor', channel: 'web', messages: [{ role: 'user', content: query }, { role: 'assistant', content: text }], resolved: true }])
+    } catch { setAiResponse('AI advisor is temporarily unavailable. Please try again.') }
+    setAiLoading(false)
   }
 
-  const { appointments, reviews, clients, campaigns, services } = data
+  // ========== COMPUTED ==========
+
+  const { appointments, reviews, clients, campaigns } = data
   const today = new Date().toISOString().split('T')[0]
   const todayAppts = appointments.filter(a => a.appointment_date === today)
   const revenue = appointments.filter(a => a.status === 'completed').reduce((s, a) => s + (a.total_price || 0), 0)
-  const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : '\u2014'
+  const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : '—'
   const statusColor = { confirmed: 'var(--gold)', completed: 'var(--green)', cancelled: 'var(--red)', no_show: 'var(--muted)', pending: 'var(--blue)' }
-  const dayNames = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' }
-  const timeAgo = (d) => { if (!d) return ''; const s = Math.floor((Date.now() - new Date(d)) / 1000); if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s/60) + 'm ago'; if (s < 86400) return Math.floor(s/3600) + 'h ago'; return Math.floor(s/86400) + 'd ago' }
+
+  const referredClients = clients.filter(c => c.referred_by)
+  const totalReferrals = referredClients.length
+
+  const buildNotifications = () => {
+    const notifs = []
+    appointments.slice(0, 15).forEach(a => {
+      notifs.push({ icon: '📅', text: `${a.client_name} booked ${a.service_name} for ${a.appointment_date}`, time: a.created_at, type: 'booking' })
+    })
+    reviews.slice(0, 10).forEach(r => {
+      notifs.push({ icon: '⭐', text: `${r.author_name} left a ${r.stars}-star review`, time: r.created_at, type: 'review' })
+    })
+    campaigns.filter(c => c.is_active).forEach(c => {
+      notifs.push({ icon: '⚡', text: `Automation "${c.name}" is running`, time: c.updated_at || c.created_at, type: 'automation' })
+    })
+    return notifs.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 30)
+  }
+  const timeAgo = (dateStr) => {
+    if (!dateStr) return ''
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    const days = Math.floor(hrs / 24)
+    return `${days}d ago`
+  }
+
+  // ========== SHARED COMPONENTS ==========
+
   const Dot = ({ on }) => <div style={{ width: 7, height: 7, borderRadius: '50%', background: on ? 'var(--green)' : 'var(--muted)', flexShrink: 0 }} />
   const Badge = ({ text, color = 'var(--gold)' }) => <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color, border: `1px solid ${color}`, padding: '2px 8px', opacity: .9 }}>{text}</span>
-  const Empty = ({ main, sub }) => (<div style={{ border: '1px dashed var(--border-dim)', padding: '80px 32px', textAlign: 'center' }}><div className="cormorant" style={{ fontSize: 22, fontStyle: 'italic', color: 'var(--muted)', marginBottom: 8 }}>{main}</div><div style={{ fontSize: 12, color: 'var(--muted)', opacity: .6 }}>{sub}</div></div>)
-  const Stat = ({ label, value, sub, accent }) => (<div style={{ background: 'var(--dark-2)', padding: '26px', border: '1px solid var(--border-dim)', flex: 1, minWidth: 0 }}><div style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>{label}</div><div className="cormorant" style={{ fontSize: 44, fontWeight: 300, color: accent || 'var(--gold)', lineHeight: 1 }}>{value}</div>{sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{sub}</div>}</div>)
-      const serviceCategories = [...new Set(services.map(s => s.category))].filter(Boolean)
+  const Empty = ({ main, sub }) => (
+    <div style={{ border: '1px dashed var(--border-dim)', padding: '80px 32px', textAlign: 'center' }}>
+      <div className="cormorant" style={{ fontSize: 22, fontStyle: 'italic', color: 'var(--muted)', marginBottom: 8 }}>{main}</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', opacity: .6 }}>{sub}</div>
+    </div>
+  )
+  const Stat = ({ label, value, sub, accent }) => (
+    <div style={{ background: 'var(--dark-2)', padding: '26px', border: '1px solid var(--border-dim)', flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>{label}</div>
+      <div className="cormorant" style={{ fontSize: 44, fontWeight: 300, color: accent || 'var(--gold)', lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{sub}</div>}
+    </div>
+  )
+  const FieldLabel = ({ children }) => (
+    <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>{children}</label>
+  )
 
   return (
-        <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--black)' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--black)' }}>
+
+      {/* SIDEBAR */}
       <div style={{ width: 240, background: 'var(--dark)', borderRight: '1px solid var(--border-dim)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ padding: '28px 24px', borderBottom: '1px solid var(--border-dim)' }}>
           <div className="cinzel" style={{ fontSize: 13, letterSpacing: '.3em', color: 'var(--gold)', marginBottom: 4 }}>ServiceMind</div>
           <div style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Salon Dashboard</div>
-    </div>
+        </div>
         <div style={{ padding: '16px 0', flex: 1, overflowY: 'auto' }}>
-{NAV.map(n => (<button key={n.id} onClick={() => setTab(n.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '13px 24px', background: tab === n.id ? 'rgba(201,168,76,.07)' : 'transparent', border: 'none', borderLeft: `2px solid ${tab === n.id ? 'var(--gold)' : 'transparent'}`, color: tab === n.id ? 'var(--gold)' : 'var(--muted)', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all .15s' }}>{n.label}</button>))}
-  </div>
+          {NAV.map(n => (
+            <button key={n.id} onClick={() => setTab(n.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '13px 24px', background: tab === n.id ? 'rgba(201,168,76,.07)' : 'transparent', border: 'none', borderLeft: `2px solid ${tab === n.id ? 'var(--gold)' : 'transparent'}`, color: tab === n.id ? 'var(--gold)' : 'var(--muted)', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all .15s' }}>
+              {n.label}
+            </button>
+          ))}
+        </div>
         <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-dim)' }}>
-          <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{salon.shop_name}</div>
+          <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3, fontWeight: 400 }}>{salon.shop_name}</div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14 }}>{salon.owner_name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}><Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial'} /><span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>{salon.subscription_status}</span></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial'} />
+            <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>{salon.subscription_status}</span>
+          </div>
           <button onClick={() => { localStorage.removeItem('sm_salon'); router.push('/') }} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center' }}>Log Out</button>
-  </div>
-  </div>
+        </div>
+      </div>
+
+      {/* MAIN */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* TOP BAR */}
         <div style={{ padding: '20px 48px', borderBottom: '1px solid var(--border-dim)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--black)', position: 'sticky', top: 0, zIndex: 10 }}>
-          <div><div className="cinzel" style={{ fontSize: 14, letterSpacing: '.2em', color: 'var(--text)' }}>{NAV.find(n => n.id === tab)?.label}</div><div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div></div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>{salon.phone && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{salon.phone}</span>}<a href={`/book/${salon.slug}`} target="_blank" rel="noreferrer" className="cinzel" style={{ fontSize: 10, letterSpacing: '.15em', color: 'var(--gold)', border: '1px solid var(--border)', padding: '8px 16px', textDecoration: 'none' }}>Booking Page &rarr;</a></div>
-                  </div>
-                          <div style={{ padding: '48px' }}>
-                                    {loading && <div className="cinzel" style={{ textAlign: 'center', color: 'var(--muted)', padding: 80, letterSpacing: '.2em', fontSize: 11 }}>Loading...</div>}
+          <div>
+            <div className="cinzel" style={{ fontSize: 14, letterSpacing: '.2em', color: 'var(--text)' }}>{NAV.find(n => n.id === tab)?.label}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {salon.phone && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{salon.phone}</span>}
+            <a href={`/book/${salon.slug}`} target="_blank" rel="noreferrer"
+              className="cinzel" style={{ fontSize: 10, letterSpacing: '.15em', color: 'var(--gold)', border: '1px solid var(--border)', padding: '8px 16px', cursor: 'pointer', textDecoration: 'none' }}>
+              Booking Page →
+            </a>
+          </div>
+        </div>
 
-                                              {!loading && tab === 'overview' && (<div>
-                                                          <div style={{ display: 'flex', gap: 2, marginBottom: 44 }}><Stat label="Today's Appointments" value={todayAppts.length} sub={`${appointments.length} total all time`} /><Stat label="Total Clients" value={clients.length} sub="in your database" /><Stat label="Avg Rating" value={avgRating} sub={`${reviews.length} reviews`} /><Stat label="Revenue Tracked" value={`$${revenue.toLocaleString()}`} sub="completed appointments" /></div>
-                                                                      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 2 }}>
-                                                                                    <div><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>Today&apos;s Schedule <span style={{ flex: 1, height: 1, background: 'var(--border-dim)' }} /></div>
-                                                                                                    {todayAppts.length === 0 ? <Empty main="No appointments today" sub="Bookings from your site appear here automatically." /> : todayAppts.map(a => (<div key={a.id} className="card" style={{ padding: '18px 22px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><div><div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{a.client_name}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.service_name} &middot; {a.appointment_time} &middot; <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div></div><Badge text={a.status} color={statusColor[a.status] || 'var(--muted)'} /></div>))}
-                                                                                                                  </div>
-                                                                                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                                                                                                                <div className="card" style={{ padding: '28px', flex: 1 }}><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Automations</div>{campaigns.slice(0, 6).map(c => (<div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}><Dot on={c.is_active} /><span style={{ fontSize: 12, color: c.is_active ? 'var(--text)' : 'var(--muted)' }}>{c.name}</span></div>))}</div>
-                                                                                                                                                                <div className="card" style={{ padding: '28px' }}><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Shop Details</div>{[['Type', salon.salon_type], ['City', [salon.city, salon.state].filter(Boolean).join(', ') || '\u2014'], ['Plan', salon.subscription_tier], ['Status', salon.subscription_status]].map(([l, v]) => (<div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 12 }}><span style={{ color: 'var(--muted)' }}>{l}</span><span style={{ color: 'var(--text)', textTransform: 'capitalize' }}>{v}</span></div>))}</div>
-                                                                                                                                                                              </div>
-                                                                                                                                                                                          </div>
-                                                                                                                                                                                                    </div>)}
-                                                                                                                                                                                                    
-                                                                                                                                                                                                              {!loading && tab === 'appointments' && (<div>
-                                                                                                                                                                                                                          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>{appointments.length} total &middot; {todayAppts.length} today</div>
-                                                                                                                                                                                                                                      {appointments.length === 0 ? <Empty main="No appointments yet" sub="Bookings through your site appear here automatically." /> : appointments.map(a => (<div key={a.id} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}><div style={{ flex: 1 }}><div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>{a.client_name}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.service_name} &middot; {a.appointment_date} at {a.appointment_time} &middot; <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>{a.client_phone && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{a.client_phone}</div>}</div><select style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', color: 'var(--text)', padding: '8px 12px', fontSize: 11, outline: 'none', borderRadius: 0, cursor: 'pointer' }} value={a.status} onChange={e => updateApptStatus(a.id, e.target.value)}><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no_show">No Show</option></select></div>))}
-                                                                                                                                                                                                                                                </div>)}
-                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                          {!loading && tab === 'clients' && (<div>
-                                                                                                                                                                                                                                                                      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>{clients.length} clients in your database</div>
-                                                                                                                                                                                                                                                                                  {selectedClient ? (<div>
-                                                                                                                                                                                                                                                                                                <button onClick={() => { setSelectedClient(null); setClientHistory([]) }} style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 12, cursor: 'pointer', marginBottom: 20 }}>&larr; Back to all clients</button>
-                                                                                                                                                                                                                                                                                                              <div className="card-gold" style={{ padding: '32px', marginBottom: 20, position: 'relative' }}><div className="gold-line-top" /><div style={{ display: 'flex', alignItems: 'center', gap: 20 }}><div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,.3), var(--dark-3))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'var(--gold)', fontFamily: 'Cinzel' }}>{(selectedClient.name || 'C').charAt(0).toUpperCase()}</div><div><div style={{ fontSize: 20, color: 'var(--text)', marginBottom: 4 }}>{selectedClient.name}</div><div style={{ fontSize: 13, color: 'var(--muted)' }}>{selectedClient.phone || 'No phone'}</div><div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{selectedClient.total_visits} visits &middot; <span style={{ color: 'var(--gold)' }}>${selectedClient.total_spent} spent</span></div></div></div></div>
-                                                                                                                                                                                                                                                                                                                            <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16 }}>Visit History</div>
-                                                                                                                                                                                                                                                                                                                                          {clientHistory.length === 0 ? <Empty main="No visit history" sub="Appointment records will appear here." /> : clientHistory.map(a => (<div key={a.id} className="card" style={{ padding: '16px 24px', marginBottom: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><div style={{ fontSize: 13, color: 'var(--text)' }}>{a.service_name}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.appointment_date} at {a.appointment_time}</div></div><div style={{ textAlign: 'right' }}><div style={{ fontSize: 13, color: 'var(--gold)' }}>${a.total_price}</div><Badge text={a.status} color={statusColor[a.status] || 'var(--muted)'} /></div></div>))}
-                                                                                                                                                                                                                                                                                                                                                      </div>) : (clients.length === 0 ? <Empty main="No clients yet" sub="Every person who books appears here automatically." /> : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 2 }}>{clients.map(c => (<div key={c.id} className="card" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }} onClick={() => loadClientHistory(c)}><div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,.3), var(--dark-3))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: 'var(--gold)', fontFamily: 'Cinzel' }}>{(c.name || 'C').charAt(0).toUpperCase()}</div><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>{c.name || 'Unknown'}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{c.phone || 'No phone'} &middot; {c.total_visits} visits &middot; <span style={{ color: 'var(--gold)' }}>${c.total_spent}</span></div></div>{c.last_visit_at && <div style={{ fontSize: 10, color: 'var(--muted)' }}>{new Date(c.last_visit_at).toLocaleDateString()}</div>}</div>))}</div>)}
-                                                                                                                                                                                                                                                                                                                                                                </div>)}
-                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                          {!loading && tab === 'reviews' && (<div>
-                                                                                                                                                                                                                                                                                                                                                                                      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>{reviews.length} reviews &middot; {avgRating}&star; average &middot; <span style={{ color: 'var(--gold)' }}>You can remove any review</span></div>
-                                                                                                                                                                                                                                                                                                                                                                                                  {reviews.length === 0 ? <Empty main="No reviews yet" sub="Reviews submitted on your booking site appear here." /> : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 2 }}>{reviews.map(r => (<div key={r.id} className="card" style={{ padding: '28px', position: 'relative' }}><button onClick={() => deleteReview(r.id)} style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.2)', color: 'var(--red)', fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', padding: '4px 10px', cursor: 'pointer' }}>Remove</button><div style={{ color: 'var(--gold)', fontSize: 12, letterSpacing: 3, marginBottom: 12 }}>{'&#9733;'.repeat(r.stars)}{'&#9734;'.repeat(5 - r.stars)}</div><div className="cormorant" style={{ fontSize: 16, fontStyle: 'italic', lineHeight: 1.7, color: 'var(--text)', marginBottom: 14 }}>&quot;{r.review_text}&quot;</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.author_name} &middot; {r.service_received} &middot; {new Date(r.created_at).toLocaleDateString()}</div></div>))}</div>}
-                                                                                                                                                                                                                                                                                                                                                                                                            </div>)}
-                                                                                                                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                                                                      {!loading && tab === 'campaigns' && (<div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                  <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 24 }}>Toggle automations on/off. When enabled, messages go out via SMS. Variables like <span style={{ color: 'var(--gold)' }}>{'{{shop_name}}'}</span> are filled automatically.</div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                              <button onClick={() => setShowCustomAutomation(!showCustomAutomation)} className="btn-gold" style={{ padding: '12px 24px', fontSize: 10, marginBottom: 24 }}>{showCustomAutomation ? 'Cancel' : '+ Create Custom Automation'}</button>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                          {showCustomAutomation && (<div className="card-gold" style={{ padding: '28px', marginBottom: 24, position: 'relative' }}><div className="gold-line-top" /><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>New Automation</div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}><div><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Name</label><input className="input" value={customAutomation.name} onChange={e => setCustomAutomation(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Welcome Text" /></div><div><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Trigger</label><select className="input" value={customAutomation.trigger} onChange={e => setCustomAutomation(p => ({ ...p, trigger: e.target.value }))}><option value="after_booking">After Booking</option><option value="missed_call">Missed Call</option><option value="no_show">No Show</option><option value="birthday">Birthday</option><option value="win_back">Win Back</option><option value="slow_day">Slow Day</option><option value="custom">Custom</option></select></div></div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      <div style={{ marginBottom: 12 }}><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Message Template</label><textarea className="input" rows={3} value={customAutomation.message} onChange={e => setCustomAutomation(p => ({ ...p, message: e.target.value }))} placeholder="Hey {{client_name}}! ..." style={{ resize: 'vertical' }} /></div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16 }}>Variables: {'{{client_name}}, {{shop_name}}, {{booking_link}}, {{review_link}}, {{time}}'}</div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <button onClick={saveCustomAutomation} className="btn-gold" style={{ padding: '12px 24px', fontSize: 10 }}>Save Automation</button>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              </div>)}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{campaigns.map(c => (<div key={c.id} style={{ background: 'var(--dark)', border: `1px solid ${c.is_active ? 'var(--border)' : 'var(--border-dim)'}`, padding: '22px 28px' }}><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: c.message_template ? 12 : 0 }}><div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><Dot on={c.is_active} /><div><div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{c.name}</div><div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase' }}>{c.campaign_type.replace(/_/g, ' ')}</div></div></div><button onClick={() => toggleCampaign(c)} className={c.is_active ? 'btn-ghost' : 'btn-gold'} style={{ padding: '8px 20px', fontSize: 10 }}>{c.is_active ? 'Disable' : 'Enable'}</button></div>{c.message_template && (<div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '12px 16px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, marginLeft: 22, fontStyle: 'italic' }}>&quot;{c.message_template}&quot;</div>)}</div>))}</div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </div>)}
+        <div style={{ padding: '48px' }}>
+          {loading && <div className="cinzel" style={{ textAlign: 'center', color: 'var(--muted)', padding: 80, letterSpacing: '.2em', fontSize: 11 }}>Loading...</div>}
 
-            {!loading && tab === 'conversations' && (<div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 2, minHeight: 500 }}>
-                                      <div style={{ background: 'var(--dark)', border: '1px solid var(--border-dim)', overflowY: 'auto' }}>
-                                                      <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', padding: '16px 20px', borderBottom: '1px solid var(--border-dim)' }}>Clients</div>
-                                                                      {conversations.length === 0 ? <div style={{ padding: 20, fontSize: 12, color: 'var(--muted)' }}>No clients yet</div> : conversations.map((cv, i) => (<div key={i} onClick={() => setSelectedConvo(cv)} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-dim)', cursor: 'pointer', background: selectedConvo?.client?.id === cv.client.id ? 'rgba(201,168,76,.07)' : 'transparent' }}><div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{cv.client.name}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{cv.client.phone}</div><div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>{cv.lastMessage}</div></div>))}
-                                                                                    </div>
-                                                                                                  <div style={{ background: 'var(--dark)', border: '1px solid var(--border-dim)', display: 'flex', flexDirection: 'column' }}>
-                                                                                                                  {!selectedConvo ? <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Empty main="Select a client" sub="Click a client to view conversation" /></div> : (<>
-                                                                                                                                    <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-dim)', display: 'flex', alignItems: 'center', gap: 12 }}><div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,.3), var(--dark-3))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: 'var(--gold)', fontFamily: 'Cinzel' }}>{(selectedConvo.client.name || 'C').charAt(0).toUpperCase()}</div><div><div style={{ fontSize: 14, color: 'var(--text)' }}>{selectedConvo.client.name}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{selectedConvo.client.phone}</div></div></div>
-                                                                                                                                                      <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>{selectedConvo.messages.length === 0 ? <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginTop: 60 }}>No messages yet. Start a conversation below.</div> : selectedConvo.messages.map((m, i) => (<div key={i} style={{ marginBottom: 12, textAlign: m.role === 'shop' ? 'right' : 'left' }}><div style={{ display: 'inline-block', padding: '10px 16px', background: m.role === 'shop' ? 'var(--gold-muted)' : 'var(--dark-3)', border: '1px solid var(--border-dim)', maxWidth: '70%', fontSize: 13, color: 'var(--text)' }}>{m.text}</div></div>))}</div>
-                                                                                                                                                                        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-dim)', display: 'flex', gap: 8 }}><input className="input" placeholder="Type a message..." value={convoReply} onChange={e => setConvoReply(e.target.value)} style={{ flex: 1 }} /><button className="btn-gold" style={{ padding: '14px 24px', fontSize: 10 }} onClick={() => { if (!convoReply.trim()) return; setConversations(prev => prev.map(cv => cv.client.id === selectedConvo.client.id ? { ...cv, messages: [...cv.messages, { role: 'shop', text: convoReply }] } : cv)); setSelectedConvo(p => ({ ...p, messages: [...p.messages, { role: 'shop', text: convoReply }] })); setConvoReply('') }}>Send</button></div>
-                                                                                                                                                                                        </>)}
-                                                                                                                                                                                                      </div>
-                                                                                                                                                                                                                  </div>
-                                                                                                                                                                                                                            </div>)}
-                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                      {!loading && tab === 'services' && (<div>
-                                                                                                                                                                                                                                                  <div className="card-gold" style={{ padding: '28px', marginBottom: 24, position: 'relative' }}><div className="gold-line-top" /><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Add New Service</div>
-                                                                                                                                                                                                                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px 80px 80px', gap: 12, alignItems: 'end' }}>
-                                                                                                                                                                                                                                                                                <div><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Name</label><input className="input" value={newService.name} onChange={e => setNewService(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Taper Fade" /></div>
-                                                                                                                                                                                                                                                                                                <div><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Category</label><input className="input" value={newService.category} onChange={e => setNewService(p => ({ ...p, category: e.target.value }))} placeholder="Haircuts" /></div>
-                                                                                                                                                                                                                                                                                                                <div><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Min</label><input className="input" type="number" value={newService.duration} onChange={e => setNewService(p => ({ ...p, duration: +e.target.value }))} /></div>
-                                                                                                                                                                                                                                                                                                                                <div><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Price</label><input className="input" type="number" value={newService.price} onChange={e => setNewService(p => ({ ...p, price: +e.target.value }))} /></div>
-                                                                                                                                                                                                                                                                                                                                                <button onClick={addService} className="btn-gold" style={{ padding: '14px 16px', fontSize: 10 }}>Add</button>
-                                                                                                                                                                                                                                                                                                                                                              </div>
+          {/* ==================== OVERVIEW ==================== */}
+          {!loading && tab === 'overview' && (
+            <div>
+              <div style={{ display: 'flex', gap: 2, marginBottom: 44 }}>
+                <Stat label="Today's Appointments" value={todayAppts.length} sub={`${appointments.length} total all time`} />
+                <Stat label="Total Clients" value={clients.length} sub="in your database" />
+                <Stat label="Avg Rating" value={avgRating} sub={`${reviews.length} reviews`} />
+                <Stat label="Revenue Tracked" value={`$${revenue.toLocaleString()}`} sub="completed appointments" />
               </div>
-                          {serviceCategories.length === 0 && services.length === 0 ? <Empty main="No services yet" sub="Add your first service above." /> : serviceCategories.map(cat => (<div key={cat} style={{ marginBottom: 24 }}><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>{cat} <span style={{ flex: 1, height: 1, background: 'var(--border-dim)' }} /></div>{services.filter(s => s.category === cat).map(s => (<div key={s.id} className="card" style={{ padding: '16px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>{editingService?.id === s.id ? (<><input className="input" value={editingService.name} onChange={e => setEditingService(p => ({ ...p, name: e.target.value }))} style={{ width: 160, padding: '8px 12px' }} /><input className="input" type="number" value={editingService.duration} onChange={e => setEditingService(p => ({ ...p, duration: +e.target.value }))} style={{ width: 60, padding: '8px 12px' }} /><input className="input" type="number" value={editingService.price} onChange={e => setEditingService(p => ({ ...p, price: +e.target.value }))} style={{ width: 70, padding: '8px 12px' }} /><button onClick={() => updateService(editingService)} className="btn-gold" style={{ padding: '8px 16px', fontSize: 9 }}>Save</button><button onClick={() => setEditingService(null)} className="btn-ghost" style={{ padding: '8px 12px', fontSize: 9 }}>Cancel</button></>) : (<><div><div style={{ fontSize: 13, color: 'var(--text)' }}>{s.name}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{s.duration} min</div></div><div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><span style={{ fontSize: 14, color: 'var(--gold)' }}>${s.price}</span><button onClick={() => setEditingService({ ...s })} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 9 }}>Edit</button><button onClick={() => deleteService(s.id)} style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.2)', color: 'var(--red)', fontSize: 9, padding: '6px 12px', cursor: 'pointer' }}>Delete</button></div></>)}</div>))}</div>))}
-                                    </div>)}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 2 }}>
+                <div>
+                  <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    Today&apos;s Schedule
+                    <span style={{ flex: 1, height: 1, background: 'var(--border-dim)' }} />
+                  </div>
+                  {todayAppts.length === 0
+                    ? <Empty main="No appointments today" sub="Bookings from your site appear here automatically." />
+                    : todayAppts.map(a => (
+                      <div key={a.id} className="card" style={{ padding: '18px 22px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{a.client_name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.service_name} · {a.appointment_time} · <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
+                        </div>
+                        <Badge text={a.status} color={statusColor[a.status] || 'var(--muted)'} />
+                      </div>
+                    ))
+                  }
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div className="card" style={{ padding: '28px', flex: 1 }}>
+                    <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Automations</div>
+                    {campaigns.slice(0, 6).map(c => (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                        <Dot on={c.is_active} />
+                        <span style={{ fontSize: 12, color: c.is_active ? 'var(--text)' : 'var(--muted)' }}>{c.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="card" style={{ padding: '28px' }}>
+                    <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Shop Details</div>
+                    {[['Type', salon.salon_type], ['City', [salon.city, salon.state].filter(Boolean).join(', ') || '—'], ['Plan', salon.subscription_tier], ['Status', salon.subscription_status]].map(([l, v]) => (
+                      <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 12 }}>
+                        <span style={{ color: 'var(--muted)' }}>{l}</span>
+                        <span style={{ color: 'var(--text)', textTransform: 'capitalize' }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                                              {!loading && tab === 'schedule' && (<div>
-                                                          <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}><div className="gold-line-top" /><div className="eyebrow" style={{ marginBottom: 20 }}>Working Hours</div>
-                                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{Object.entries(dayNames).map(([key, name]) => (<div key={key} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 0' }}><label style={{ width: 110, fontSize: 13, color: scheduleSettings[key]?.enabled ? 'var(--text)' : 'var(--muted)' }}><input type="checkbox" checked={scheduleSettings[key]?.enabled || false} onChange={e => setScheduleSettings(p => ({ ...p, [key]: { ...p[key], enabled: e.target.checked } }))} style={{ marginRight: 10 }} />{name}</label>{scheduleSettings[key]?.enabled && (<><input type="time" className="input" value={scheduleSettings[key]?.open || '08:00'} onChange={e => setScheduleSettings(p => ({ ...p, [key]: { ...p[key], open: e.target.value } }))} style={{ width: 130, padding: '8px 12px' }} /><span style={{ color: 'var(--muted)' }}>to</span><input type="time" className="input" value={scheduleSettings[key]?.close || '18:00'} onChange={e => setScheduleSettings(p => ({ ...p, [key]: { ...p[key], close: e.target.value } }))} style={{ width: 130, padding: '8px 12px' }} /></>)}</div>))}</div>
-                                                                                    </div>
-                                                                                                <div className="card" style={{ padding: '28px', marginBottom: 20 }}><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Slot Settings</div>
-                                                                                                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                                                                                                                              <div><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Slot Duration (minutes)</label><select className="input" value={scheduleSettings.slot_duration} onChange={e => setScheduleSettings(p => ({ ...p, slot_duration: +e.target.value }))}><option value={15}>15 min</option><option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option></select></div>
-                                                                                                                                              <div><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Buffer Between Appointments</label><select className="input" value={scheduleSettings.buffer_minutes} onChange={e => setScheduleSettings(p => ({ ...p, buffer_minutes: +e.target.value }))}><option value={0}>No buffer</option><option value={5}>5 min</option><option value={10}>10 min</option><option value={15}>15 min</option><option value={30}>30 min</option></select></div>
-                                                                                                                                                            </div>
-                                                                                                                                                                        </div>
-                                                                                                                                                                                    <div className="card" style={{ padding: '28px', marginBottom: 20 }}><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Blocked Dates</div>
-                                                                                                                                                                                                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}><input type="date" className="input" value={blockDate} onChange={e => setBlockDate(e.target.value)} style={{ width: 200 }} /><button onClick={() => { if (blockDate && !scheduleSettings.blocked_dates.includes(blockDate)) { setScheduleSettings(p => ({ ...p, blocked_dates: [...p.blocked_dates, blockDate] })); setBlockDate('') } }} className="btn-gold" style={{ padding: '12px 20px', fontSize: 10 }}>Block Date</button></div>
-                                                                                                                                                                                                                {scheduleSettings.blocked_dates?.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{scheduleSettings.blocked_dates.map(d => (<span key={d} style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '6px 12px', fontSize: 11, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>{d}<button onClick={() => setScheduleSettings(p => ({ ...p, blocked_dates: p.blocked_dates.filter(x => x !== d) }))} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: 14 }}>&times;</button></span>))}</div>}
-                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                        <button onClick={saveSchedule} className="btn-gold" style={{ padding: '15px 36px' }}>Save Schedule</button>
-                                                                                                                                                                                                                                                  </div>)}
-                                                                                                                                                                                                                                                  
-                                                                                                                                                                                                                                                            {!loading && tab === 'ai' && (<div>
-                                                                                                                                                                                                                                                                        <div style={{ background: 'var(--dark)', border: '1px solid var(--border)', padding: '36px', marginBottom: 24, position: 'relative' }}><div className="gold-line-top" /><div className="eyebrow" style={{ marginBottom: 20 }}>AI Business Advisor</div><h3 className="cormorant" style={{ fontSize: 36, fontWeight: 300, marginBottom: 16 }}>Ask your <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>AI advisor</em> anything.</h3><p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 28 }}>Your AI knows your shop &mdash; its revenue, appointment patterns, client base, and ratings.</p>
-                                                                                                                                                                                                                                                                                      <div style={{ display: 'flex', gap: 8 }}><input className="input" placeholder="e.g. How can I increase revenue this month?" value={aiQuery} onChange={e => setAiQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && askAi()} style={{ flex: 1 }} /><button onClick={() => askAi()} disabled={aiLoading || !aiQuery.trim()} className="btn-gold" style={{ padding: '14px 28px', opacity: aiLoading || !aiQuery.trim() ? .5 : 1 }}>{aiLoading ? '...' : 'Ask \u2192'}</button></div>
-                                                                                                                                                                                                                                                                                                    <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>{['What should I focus on this week?', 'Why are my no-shows high?', 'How do I get more clients?', 'Write me a slow day promo text'].map(q => (<button key={q} onClick={() => { setAiQuery(q); askAi(q) }} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '6px 14px', fontSize: 11, cursor: 'pointer', borderRadius: 0 }}>{q}</button>))}</div>
-                                                                                                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                                                                                                            {aiResponse && (<div className="card-gold" style={{ padding: '32px' }}><div className="gold-line-top" /><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16 }}>AI Advisor Response</div><div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>{aiResponse}</div></div>)}
-                                                                                                                                                                                                                                                                                                                                      </div>)}
-                                                                                                                                                                                                                                                                                                                                      
-                                                                                                                                                                                                                                                                                                                                                {!loading && tab === 'notifications' && (<div>
-                                                                                                                                                                                                                                                                                                                                                            <div className="eyebrow" style={{ marginBottom: 24 }}>Activity Feed</div>
-                                                                                                                                                                                                                                                                                                                                                                        {notifLog.length === 0 ? <Empty main="No activity yet" sub="Recent bookings, reviews, and automations will appear here." /> : notifLog.map((n, i) => (<div key={i} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 16 }}><span style={{ fontSize: 20, flexShrink: 0 }}>{n.type === 'booking' ? '\uD83D\uDCC5' : n.type === 'review' ? '\u2B50' : '\u26A1'}</span><div style={{ flex: 1 }}><div style={{ fontSize: 13, color: 'var(--text)' }}>{n.text}</div></div><div style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>{timeAgo(n.time)}</div></div>))}
-                                                                                                                                                                                                                                                                                                                                                                                  </div>)}
-                                                                                                                                                                                                                                                                                                                                                                                  
-                                                                                                                                                                                                                                                                                                                                                                                            {!loading && tab === 'referrals' && (<div>
-                                                                                                                                                                                                                                                                                                                                                                                                        <div style={{ display: 'flex', gap: 2, marginBottom: 32 }}><Stat label="Total Referrals" value={clients.filter(c => c.referred_by).length} sub="clients referred" /><Stat label="Referral Revenue" value={`$${clients.filter(c => c.referred_by).reduce((s, c) => s + (c.total_spent || 0), 0)}`} sub="from referred clients" /></div>
-                                                                                                                                                                                                                                                                                                                                                                                                                    <div className="card-gold" style={{ padding: '24px', marginBottom: 24, position: 'relative' }}><div className="gold-line-top" /><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 12 }}>Your Referral Link</div><div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '12px 16px', fontSize: 13, color: 'var(--text)', wordBreak: 'break-all' }}>servicemind.vercel.app/book/{salon.slug}?ref=CLIENTPHONE</div><div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>Share this with clients. Replace CLIENTPHONE with their number to track referrals.</div></div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                {clients.filter(c => c.referred_by).length === 0 ? <Empty main="No referrals yet" sub="When clients book through a referral link, they'll appear here." /> : <div>{clients.filter(c => c.referred_by).map(c => (<div key={c.id} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><div><div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{c.name}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>Referred by: {c.referred_by}</div></div><div style={{ textAlign: 'right' }}><div style={{ fontSize: 13, color: 'var(--gold)' }}>${c.total_spent}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{c.total_visits} visits</div></div></div>))}</div>}
-                                                                                                                                                                                                                                                                                                                                                                                                                                          </div>)}
-                                                                                                                                                                                                                                                                                                                                                                                                                                          
-                                                                                                                                                                                                                                                                                                                                                                                                                                                    {!loading && tab === 'settings' && (<div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}><div className="gold-line-top" /><div className="eyebrow" style={{ marginBottom: 20 }}>Shop Profile</div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              {[['Shop Name', 'shop_name', 'text'], ['Owner Name', 'owner_name', 'text'], ['Phone', 'phone', 'tel'], ['Email', 'email', 'email'], ['City', 'city', 'text'], ['State', 'state', 'text'], ['Business Type', 'salon_type', 'text'], ['Passcode', 'passcode', 'text']].map(([label, key, type]) => (<div key={key}><label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>{label}</label><input className="input" type={type} value={settingsForm[key] || ''} onChange={e => setSettingsForm(p => ({ ...p, [key]: e.target.value }))} /></div>))}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          <button onClick={saveSettings} className="btn-gold" style={{ padding: '15px 36px', marginTop: 24 }}>Save Profile</button>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <div className="card" style={{ padding: '28px' }}><div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>What Fires Automatically</div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                {[['New booking', 'You get a text when someone books'], ['24hr reminder', 'Client gets a reminder the day before'], ['1hr reminder', 'Client gets a reminder 1 hour before'], ['After visit', 'Review request after each appointment'], ['45 days quiet', 'Win-back text for inactive clients'], ['Birthday', 'Special offer on client birthday']].map(([t, d], i) => (<div key={i} style={{ display: 'flex', gap: 16, marginBottom: 16 }}><span style={{ color: 'var(--gold)', fontSize: 10, marginTop: 4 }}>&diams;</span><div><div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{t}</div><div style={{ fontSize: 12, color: 'var(--muted)' }}>{d}</div></div></div>))}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      </div>)}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          )
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }
+          {/* ==================== APPOINTMENTS ==================== */}
+          {!loading && tab === 'appointments' && (
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>{appointments.length} total · {todayAppts.length} today</div>
+              {appointments.length === 0 ? <Empty main="No appointments yet" sub="Bookings through your site appear here automatically." /> :
+                appointments.map(a => (
+                  <div key={a.id} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>{a.client_name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.service_name} · {a.appointment_date} at {a.appointment_time} · <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
+                      {a.client_phone && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{a.client_phone}</div>}
+                    </div>
+                    <select style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', color: 'var(--text)', padding: '8px 12px', fontSize: 11, outline: 'none', borderRadius: 0, cursor: 'pointer', flexShrink: 0 }}
+                      value={a.status} onChange={e => updateApptStatus(a.id, e.target.value)}>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                      <option value="no_show">No Show</option>
+                    </select>
+                  </div>
+                ))
+              }
+            </div>
+          )}
+
+          {/* ==================== CLIENTS (with history) ==================== */}
+          {!loading && tab === 'clients' && (
+            <div>
+              {selectedClient ? (
+                <div>
+                  <button onClick={() => { setSelectedClient(null); setClientAppointments([]) }}
+                    className="btn-ghost" style={{ padding: '8px 20px', fontSize: 10, marginBottom: 28 }}>
+                    ← Back to Clients
+                  </button>
+                  <div className="card-gold" style={{ padding: '36px', marginBottom: 24, position: 'relative' }}>
+                    <div className="gold-line-top" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28 }}>
+                      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,.3), var(--dark-3))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--gold)', fontFamily: 'Cinzel', flexShrink: 0 }}>
+                        {(selectedClient.name || 'C').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="cormorant" style={{ fontSize: 32, fontWeight: 300, color: 'var(--text)' }}>{selectedClient.name || 'Unknown'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{selectedClient.phone || 'No phone'}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 2 }}>
+                      <Stat label="Total Visits" value={selectedClient.total_visits || 0} />
+                      <Stat label="Total Spent" value={`$${selectedClient.total_spent || 0}`} />
+                      <Stat label="Last Visit" value={selectedClient.last_visit_at ? new Date(selectedClient.last_visit_at).toLocaleDateString() : '—'} />
+                    </div>
+                  </div>
+                  <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    Appointment History
+                    <span style={{ flex: 1, height: 1, background: 'var(--border-dim)' }} />
+                  </div>
+                  {clientHistoryLoading ? (
+                    <div className="cinzel" style={{ textAlign: 'center', color: 'var(--muted)', padding: 40, fontSize: 11 }}>Loading...</div>
+                  ) : clientAppointments.length === 0 ? (
+                    <Empty main="No appointment history" sub="Past appointments for this client will appear here." />
+                  ) : (
+                    clientAppointments.map(a => (
+                      <div key={a.id} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>{a.service_name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.appointment_date} at {a.appointment_time} · <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
+                        </div>
+                        <Badge text={a.status} color={statusColor[a.status] || 'var(--muted)'} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>{clients.length} clients in your database</div>
+                  {clients.length === 0 ? <Empty main="No clients yet" sub="Every person who books appears here automatically." /> :
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 2 }}>
+                      {clients.map(c => (
+                        <div key={c.id} className="card" onClick={() => loadClientHistory(c)}
+                          style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', transition: 'border-color .2s' }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = ''}>
+                          <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,.3), var(--dark-3))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: 'var(--gold)', fontFamily: 'Cinzel', flexShrink: 0 }}>
+                            {(c.name || 'C').charAt(0).toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>{c.name || 'Unknown'}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{c.phone || 'No phone'} · {c.total_visits} visits · <span style={{ color: 'var(--gold)' }}>${c.total_spent}</span></div>
+                          </div>
+                          {c.last_visit_at && <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'right', flexShrink: 0 }}>{new Date(c.last_visit_at).toLocaleDateString()}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  }
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== REVIEWS ==================== */}
+          {!loading && tab === 'reviews' && (
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>
+                {reviews.length} reviews · {avgRating}★ average · <span style={{ color: 'var(--gold)' }}>You can remove any review</span>
+              </div>
+              {reviews.length === 0 ? <Empty main="No reviews yet" sub="Reviews submitted on your booking site appear here. You control what stays visible." /> :
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 2 }}>
+                  {reviews.map(r => (
+                    <div key={r.id} className="card" style={{ padding: '28px', position: 'relative' }}>
+                      <button onClick={() => deleteReview(r.id)} style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.2)', color: 'var(--red)', fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', padding: '4px 10px', cursor: 'pointer' }}>
+                        Remove
+                      </button>
+                      <div style={{ color: 'var(--gold)', fontSize: 12, letterSpacing: 3, marginBottom: 12 }}>{'★'.repeat(r.stars)}{'☆'.repeat(5 - r.stars)}</div>
+                      <div className="cormorant" style={{ fontSize: 16, fontStyle: 'italic', lineHeight: 1.7, color: 'var(--text)', marginBottom: 14 }}>&quot;{r.review_text}&quot;</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.author_name} · {r.service_received} · {new Date(r.created_at).toLocaleDateString()}</div>
+                    </div>
+                  ))}
+                </div>
+              }
+            </div>
+          )}
+
+          {/* ==================== AUTOMATIONS + BUILDER ==================== */}
+          {!loading && tab === 'campaigns' && (
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 32 }}>
+                Toggle your automations on or off. When enabled, these messages go out automatically to clients via SMS. Variables like <span style={{ color: 'var(--gold)' }}>{'{{shop_name}}'}</span> are filled in automatically.
+              </div>
+
+              <div style={{ marginBottom: 28 }}>
+                <button onClick={() => setShowAutomationForm(!showAutomationForm)}
+                  className="btn-gold" style={{ padding: '12px 28px', fontSize: 10 }}>
+                  {showAutomationForm ? 'Cancel' : '+ Create Custom Automation'}
+                </button>
+              </div>
+
+              {showAutomationForm && (
+                <div className="card-gold" style={{ padding: '32px', marginBottom: 28, position: 'relative' }}>
+                  <div className="gold-line-top" />
+                  <div className="eyebrow" style={{ marginBottom: 20 }}>New Automation</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div>
+                      <FieldLabel>Automation Name</FieldLabel>
+                      <input className="input" placeholder="e.g. VIP Follow-Up" value={automationForm.name}
+                        onChange={e => setAutomationForm(f => ({ ...f, name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <FieldLabel>Trigger Type</FieldLabel>
+                      <select className="input" value={automationForm.campaign_type}
+                        onChange={e => setAutomationForm(f => ({ ...f, campaign_type: e.target.value }))}>
+                        <option value="after_booking">After Booking</option>
+                        <option value="missed_call">Missed Call</option>
+                        <option value="no_show">No Show</option>
+                        <option value="birthday">Birthday</option>
+                        <option value="win_back">Win Back</option>
+                        <option value="slow_day">Slow Day</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 16 }}>
+                    <FieldLabel>Message Template</FieldLabel>
+                    <textarea className="input" rows={4} placeholder={'Hey {{client_name}}, thanks for visiting {{shop_name}}! ...'}
+                      value={automationForm.message_template}
+                      onChange={e => setAutomationForm(f => ({ ...f, message_template: e.target.value }))}
+                      style={{ resize: 'vertical' }} />
+                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 6 }}>
+                      Available: <span style={{ color: 'var(--gold)' }}>{'{{client_name}} {{shop_name}} {{service_name}} {{booking_date}} {{owner_name}}'}</span>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 20, maxWidth: 200 }}>
+                    <FieldLabel>Delay (hours after trigger)</FieldLabel>
+                    <input className="input" type="number" min="0" value={automationForm.delay_hours}
+                      onChange={e => setAutomationForm(f => ({ ...f, delay_hours: e.target.value }))} />
+                  </div>
+                  <button onClick={saveCustomAutomation} disabled={automationSaving}
+                    className="btn-gold" style={{ padding: '12px 28px', fontSize: 10, opacity: automationSaving ? .5 : 1 }}>
+                    {automationSaving ? 'Saving...' : 'Save Automation'}
+                  </button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {campaigns.map(c => (
+                  <div key={c.id} style={{ background: 'var(--dark)', border: `1px solid ${c.is_active ? 'var(--border)' : 'var(--border-dim)'}`, padding: '22px 28px', transition: 'border-color .2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: c.message_template ? 12 : 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <Dot on={c.is_active} />
+                        <div>
+                          <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{c.name}</div>
+                          <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase' }}>{c.campaign_type.replace(/_/g, ' ')}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => toggleCampaign(c)} className={c.is_active ? 'btn-ghost' : 'btn-gold'} style={{ padding: '8px 20px', fontSize: 10 }}>
+                        {c.is_active ? 'Disable' : 'Enable'}
+                      </button>
+                    </div>
+                    {c.message_template && (
+                      <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '12px 16px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, marginLeft: 22, fontStyle: 'italic' }}>
+                        &quot;{c.message_template}&quot;
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ==================== SERVICES ==================== */}
+          {!loading && tab === 'services' && (
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>{data.services.length} services configured</div>
+              <div style={{ marginBottom: 28 }}>
+                <button onClick={() => { setShowServiceForm(!showServiceForm); setEditingService(null); setServiceForm({ name: '', category: 'core', duration_minutes: 30, price: 0 }) }}
+                  className="btn-gold" style={{ padding: '12px 28px', fontSize: 10 }}>
+                  {showServiceForm ? 'Cancel' : '+ Add Service'}
+                </button>
+              </div>
+
+              {showServiceForm && (
+                <div className="card-gold" style={{ padding: '32px', marginBottom: 28, position: 'relative' }}>
+                  <div className="gold-line-top" />
+                  <div className="eyebrow" style={{ marginBottom: 20 }}>{editingService ? 'Edit Service' : 'New Service'}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div>
+                      <FieldLabel>Service Name</FieldLabel>
+                      <input className="input" placeholder="e.g. Signature Fade" value={serviceForm.name}
+                        onChange={e => setServiceForm(f => ({ ...f, name: e.target.value }))} />
+                    </div>
+                    <div>
+                      <FieldLabel>Category</FieldLabel>
+                      <select className="input" value={serviceForm.category}
+                        onChange={e => setServiceForm(f => ({ ...f, category: e.target.value }))}>
+                        <option value="core">Core</option>
+                        <option value="luxury">Luxury</option>
+                        <option value="vip">VIP</option>
+                        <option value="addon">Add-On</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                    <div>
+                      <FieldLabel>Duration (minutes)</FieldLabel>
+                      <input className="input" type="number" min="5" value={serviceForm.duration_minutes}
+                        onChange={e => setServiceForm(f => ({ ...f, duration_minutes: e.target.value }))} />
+                    </div>
+                    <div>
+                      <FieldLabel>Price ($)</FieldLabel>
+                      <input className="input" type="number" min="0" step="0.01" value={serviceForm.price}
+                        onChange={e => setServiceForm(f => ({ ...f, price: e.target.value }))} />
+                    </div>
+                  </div>
+                  <button onClick={saveService} disabled={serviceSaving}
+                    className="btn-gold" style={{ padding: '12px 28px', fontSize: 10, opacity: serviceSaving ? .5 : 1 }}>
+                    {serviceSaving ? 'Saving...' : editingService ? 'Update Service' : 'Add Service'}
+                  </button>
+                </div>
+              )}
+
+              {['core', 'luxury', 'vip', 'addon'].map(cat => {
+                const catServices = data.services.filter(s => s.category === cat).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                if (catServices.length === 0) return null
+                return (
+                  <div key={cat} style={{ marginBottom: 32 }}>
+                    <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 12, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {cat === 'addon' ? 'Add-Ons' : cat}
+                      <span style={{ flex: 1, height: 1, background: 'var(--border-dim)' }} />
+                    </div>
+                    {catServices.map(s => (
+                      <div key={s.id} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{s.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{s.duration_minutes}min · <span style={{ color: 'var(--gold)' }}>${s.price}</span></div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => moveService(s.id, 'up')} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}>↑</button>
+                          <button onClick={() => moveService(s.id, 'down')} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}>↓</button>
+                          <button onClick={() => {
+                            setEditingService(s)
+                            setServiceForm({ name: s.name, category: s.category, duration_minutes: s.duration_minutes, price: s.price })
+                            setShowServiceForm(true)
+                          }} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--gold)', padding: '4px 10px', fontSize: 9, cursor: 'pointer', letterSpacing: '.1em', textTransform: 'uppercase' }}>Edit</button>
+                          <button onClick={() => deleteService(s.id)} style={{ background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.2)', color: 'var(--red)', padding: '4px 10px', fontSize: 9, cursor: 'pointer', letterSpacing: '.1em', textTransform: 'uppercase' }}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ==================== CONVERSATIONS ==================== */}
+          {!loading && tab === 'conversations' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 2, minHeight: 500 }}>
+              <div style={{ background: 'var(--dark)', border: '1px solid var(--border-dim)', overflowY: 'auto', maxHeight: 600 }}>
+                <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', padding: '18px 20px', borderBottom: '1px solid var(--border-dim)' }}>Clients</div>
+                {clients.length === 0 ? (
+                  <div style={{ padding: 20, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>No clients yet</div>
+                ) : clients.map(c => (
+                  <div key={c.id} onClick={() => loadConversation(c)}
+                    style={{
+                      padding: '14px 20px', cursor: 'pointer', borderBottom: '1px solid var(--border-dim)',
+                      background: selectedConvoClient?.id === c.id ? 'rgba(201,168,76,.07)' : 'transparent',
+                      borderLeft: selectedConvoClient?.id === c.id ? '2px solid var(--gold)' : '2px solid transparent',
+                      transition: 'all .15s'
+                    }}>
+                    <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{c.name || 'Unknown'}</div>
+                    <div style={{ fontSize: 10, color: 'var(--muted)' }}>{c.phone || 'No phone'}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background: 'var(--dark)', border: '1px solid var(--border-dim)', display: 'flex', flexDirection: 'column' }}>
+                {!selectedConvoClient ? (
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="cormorant" style={{ fontSize: 20, fontStyle: 'italic', color: 'var(--muted)' }}>Select a client to view conversation</div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-dim)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,168,76,.3), var(--dark-3))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: 'var(--gold)', fontFamily: 'Cinzel' }}>
+                        {(selectedConvoClient.name || 'C').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, color: 'var(--text)' }}>{selectedConvoClient.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--muted)' }}>{selectedConvoClient.phone}</div>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', maxHeight: 400 }}>
+                      {convoLoading ? (
+                        <div className="cinzel" style={{ textAlign: 'center', color: 'var(--muted)', padding: 40, fontSize: 11 }}>Loading...</div>
+                      ) : convoMessages.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 40, fontSize: 12 }}>No messages yet</div>
+                      ) : (
+                        convoMessages.map((convo, idx) => (
+                          <div key={idx} style={{ marginBottom: 16 }}>
+                            {(convo.messages || []).map((m, mi) => (
+                              <div key={mi} style={{
+                                display: 'flex', justifyContent: m.role === 'assistant' ? 'flex-start' : 'flex-end', marginBottom: 8
+                              }}>
+                                <div style={{
+                                  maxWidth: '70%', padding: '10px 16px', fontSize: 13, lineHeight: 1.6,
+                                  background: m.role === 'assistant' ? 'var(--dark-3)' : 'rgba(201,168,76,.12)',
+                                  border: `1px solid ${m.role === 'assistant' ? 'var(--border-dim)' : 'var(--border)'}`,
+                                  color: 'var(--text-2)'
+                                }}>
+                                  {m.content}
+                                </div>
+                              </div>
+                            ))}
+                            <div style={{ fontSize: 9, color: 'var(--muted)', textAlign: 'right' }}>{timeAgo(convo.created_at)}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border-dim)', display: 'flex', gap: 8 }}>
+                      <input className="input" placeholder="Type a reply..." value={convoReply}
+                        onChange={e => setConvoReply(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && sendConvoReply()}
+                        style={{ flex: 1 }} />
+                      <button onClick={sendConvoReply} className="btn-gold" style={{ padding: '14px 24px', fontSize: 10 }}>Send</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ==================== REFERRALS ==================== */}
+          {!loading && tab === 'referrals' && (
+            <div>
+              <div style={{ display: 'flex', gap: 2, marginBottom: 32 }}>
+                <Stat label="Total Referrals" value={totalReferrals} sub="clients referred by others" />
+                <Stat label="Referral Revenue" value={`$${referredClients.reduce((s, c) => s + (c.total_spent || 0), 0)}`} sub="from referred clients" />
+              </div>
+
+              <div className="card-gold" style={{ padding: '28px', marginBottom: 28, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 12 }}>Your Referral Link</div>
+                <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 16 }}>
+                  Share this with clients. Replace CLIENT_PHONE with their number to track referrals.
+                </div>
+                <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '14px 18px', fontSize: 13, color: 'var(--gold)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                  servicemind.vercel.app/book/{salon.slug}?ref=CLIENT_PHONE
+                </div>
+              </div>
+
+              <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                Referred Clients
+                <span style={{ flex: 1, height: 1, background: 'var(--border-dim)' }} />
+              </div>
+              {referredClients.length === 0 ? (
+                <Empty main="No referrals yet" sub="When a client books with a referral link, they'll appear here." />
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        {['Client', 'Referred By', 'Date Joined', 'Visits', 'Spent'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '12px 16px', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', borderBottom: '1px solid var(--border-dim)' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {referredClients.map(c => (
+                        <tr key={c.id} style={{ borderBottom: '1px solid var(--border-dim)' }}>
+                          <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text)' }}>{c.name || 'Unknown'}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--gold)' }}>{c.referred_by}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--muted)' }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text)' }}>{c.total_visits || 0}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--gold)' }}>${c.total_spent || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== SCHEDULE ==================== */}
+          {!loading && tab === 'schedule' && (
+            <div>
+              <div className="card-gold" style={{ padding: '36px', marginBottom: 28, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Weekly Hours</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {Object.entries(scheduleSettings.days).map(([day, cfg]) => (
+                    <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 0', borderBottom: '1px solid var(--border-dim)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, width: 140, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={cfg.enabled}
+                          onChange={e => setScheduleSettings(s => ({ ...s, days: { ...s.days, [day]: { ...cfg, enabled: e.target.checked } } }))} />
+                        <span style={{ fontSize: 13, color: cfg.enabled ? 'var(--text)' : 'var(--muted)', textTransform: 'capitalize' }}>{day}</span>
+                      </label>
+                      {cfg.enabled && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input type="time" className="input" value={cfg.open} style={{ width: 130, padding: '8px 12px' }}
+                            onChange={e => setScheduleSettings(s => ({ ...s, days: { ...s.days, [day]: { ...cfg, open: e.target.value } } }))} />
+                          <span style={{ color: 'var(--muted)', fontSize: 12 }}>to</span>
+                          <input type="time" className="input" value={cfg.close} style={{ width: 130, padding: '8px 12px' }}
+                            onChange={e => setScheduleSettings(s => ({ ...s, days: { ...s.days, [day]: { ...cfg, close: e.target.value } } }))} />
+                        </div>
+                      )}
+                      {!cfg.enabled && <span style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Closed</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, marginBottom: 28 }}>
+                <div className="card" style={{ padding: '28px' }}>
+                  <FieldLabel>Slot Duration</FieldLabel>
+                  <select className="input" value={scheduleSettings.slot_duration}
+                    onChange={e => setScheduleSettings(s => ({ ...s, slot_duration: parseInt(e.target.value) }))}>
+                    <option value={15}>15 minutes</option>
+                    <option value={30}>30 minutes</option>
+                    <option value={45}>45 minutes</option>
+                    <option value={60}>60 minutes</option>
+                  </select>
+                </div>
+                <div className="card" style={{ padding: '28px' }}>
+                  <FieldLabel>Buffer Between Appointments (min)</FieldLabel>
+                  <input className="input" type="number" min="0" max="60" value={scheduleSettings.buffer_minutes}
+                    onChange={e => setScheduleSettings(s => ({ ...s, buffer_minutes: parseInt(e.target.value) || 0 }))} />
+                </div>
+              </div>
+
+              <div className="card" style={{ padding: '28px', marginBottom: 28 }}>
+                <FieldLabel>Block Specific Dates</FieldLabel>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <input type="date" className="input" value={newBlockedDate}
+                    onChange={e => setNewBlockedDate(e.target.value)} style={{ flex: 1 }} />
+                  <button className="btn-gold" style={{ padding: '12px 20px', fontSize: 10 }}
+                    onClick={() => {
+                      if (!newBlockedDate) return
+                      setScheduleSettings(s => ({ ...s, blocked_dates: [...(s.blocked_dates || []), newBlockedDate] }))
+                      setNewBlockedDate('')
+                    }}>Block Date</button>
+                </div>
+                {(scheduleSettings.blocked_dates || []).length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {scheduleSettings.blocked_dates.map((d, i) => (
+                      <span key={i} style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '6px 12px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {d}
+                        <button onClick={() => setScheduleSettings(s => ({ ...s, blocked_dates: s.blocked_dates.filter((_, idx) => idx !== i) }))}
+                          style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: 12 }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button onClick={saveSchedule} disabled={scheduleSaving}
+                className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: scheduleSaving ? .5 : 1 }}>
+                {scheduleSaving ? 'Saving...' : 'Save Schedule'}
+              </button>
+            </div>
+          )}
+
+          {/* ==================== NOTIFICATIONS ==================== */}
+          {!loading && tab === 'notifications' && (
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>Recent activity across your shop — bookings, reviews, and automations.</div>
+              {(() => {
+                const notifs = buildNotifications()
+                return notifs.length === 0 ? (
+                  <Empty main="No activity yet" sub="Bookings, reviews, and automation events will appear here." />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {notifs.map((n, i) => (
+                      <div key={i} className="card" style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{ fontSize: 20, flexShrink: 0 }}>{n.icon}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{n.text}</div>
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>{timeAgo(n.time)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
+          {/* ==================== AI ADVISOR ==================== */}
+          {!loading && tab === 'ai' && (
+            <div>
+              <div style={{ background: 'var(--dark)', border: '1px solid var(--border)', padding: '36px', marginBottom: 24, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>AI Business Advisor</div>
+                <h3 className="cormorant" style={{ fontSize: 36, fontWeight: 300, marginBottom: 16 }}>
+                  Ask your <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>AI advisor</em> anything.
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 28 }}>
+                  Your AI knows your shop — its revenue, appointment patterns, client base, and ratings. Ask it for real advice.
+                </p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input className="input"
+                    placeholder="e.g. How can I increase revenue this month?"
+                    value={aiQuery} onChange={e => setAiQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && askAi()}
+                    style={{ flex: 1 }} />
+                  <button onClick={askAi} disabled={aiLoading || !aiQuery.trim()} className="btn-gold" style={{ padding: '14px 28px', opacity: aiLoading || !aiQuery.trim() ? .5 : 1 }}>
+                    {aiLoading ? '...' : 'Ask →'}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                  {['What should I focus on this week?', 'Why are my no-shows high?', 'How do I get more clients?', 'Write me a slow day promo text'].map(q => (
+                    <button key={q} onClick={() => { setAiQuery(q); askAi(q) }}
+                      style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '6px 14px', fontSize: 11, cursor: 'pointer', borderRadius: 0 }}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {aiResponse && (
+                <div className="card-gold" style={{ padding: '32px' }}>
+                  <div className="gold-line-top" />
+                  <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16 }}>AI Advisor Response</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.9, whiteSpace: 'pre-wrap' }}>{aiResponse}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== SETTINGS ==================== */}
+          {!loading && tab === 'settings' && (
+            <div>
+              <div className="card-gold" style={{ padding: '36px', marginBottom: 24, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Shop Profile</div>
+                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 24 }}>
+                  Edit your <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>shop details</em>
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <FieldLabel>Shop Name</FieldLabel>
+                    <input className="input" value={settingsForm.shop_name}
+                      onChange={e => setSettingsForm(f => ({ ...f, shop_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <FieldLabel>Owner Name</FieldLabel>
+                    <input className="input" value={settingsForm.owner_name}
+                      onChange={e => setSettingsForm(f => ({ ...f, owner_name: e.target.value }))} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <FieldLabel>Phone</FieldLabel>
+                    <input className="input" value={settingsForm.phone}
+                      onChange={e => setSettingsForm(f => ({ ...f, phone: e.target.value }))} />
+                  </div>
+                  <div>
+                    <FieldLabel>Email</FieldLabel>
+                    <input className="input" type="email" value={settingsForm.email}
+                      onChange={e => setSettingsForm(f => ({ ...f, email: e.target.value }))} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <FieldLabel>City</FieldLabel>
+                    <input className="input" value={settingsForm.city}
+                      onChange={e => setSettingsForm(f => ({ ...f, city: e.target.value }))} />
+                  </div>
+                  <div>
+                    <FieldLabel>State</FieldLabel>
+                    <input className="input" value={settingsForm.state}
+                      onChange={e => setSettingsForm(f => ({ ...f, state: e.target.value }))} />
+                  </div>
+                  <div>
+                    <FieldLabel>Salon Type</FieldLabel>
+                    <select className="input" value={settingsForm.salon_type}
+                      onChange={e => setSettingsForm(f => ({ ...f, salon_type: e.target.value }))}>
+                      <option value="">Select type...</option>
+                      <option value="barbershop">Barbershop</option>
+                      <option value="hair_salon">Hair Salon</option>
+                      <option value="nail_salon">Nail Salon</option>
+                      <option value="spa">Spa</option>
+                      <option value="beauty_studio">Beauty Studio</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ marginBottom: 24, maxWidth: 300 }}>
+                  <FieldLabel>Dashboard Passcode</FieldLabel>
+                  <input className="input" value={settingsForm.passcode}
+                    onChange={e => setSettingsForm(f => ({ ...f, passcode: e.target.value }))} />
+                </div>
+                <button onClick={saveSettings} disabled={settingsSaving}
+                  className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: settingsSaving ? .5 : 1 }}>
+                  {settingsSaving ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
+
+              <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Notifications</div>
+                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
+                  Where should we send <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>alerts?</em>
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 28 }}>
+                  Get notified when a new appointment is booked, a client leaves a review, or an automation fires.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <FieldLabel>Your Phone Number (for alerts)</FieldLabel>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input className="input" placeholder={salon.phone || '(404) 000-0000'} defaultValue={salon.phone || ''}
+                        id="notif-phone" style={{ flex: 1 }} />
+                      <button className="btn-gold" style={{ padding: '14px 24px', whiteSpace: 'nowrap' }}
+                        onClick={async () => {
+                          const val = document.getElementById('notif-phone').value
+                          await sb().from('salons').update({ phone: val }).eq('id', salon.id)
+                          alert('Saved!')
+                        }}>Save</button>
+                    </div>
+                  </div>
+                  <div>
+                    <FieldLabel>Notification Email</FieldLabel>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input className="input" type="email" placeholder={salon.email || 'you@yourshop.com'} defaultValue={salon.email || ''}
+                        id="notif-email" style={{ flex: 1 }} />
+                      <button className="btn-gold" style={{ padding: '14px 24px', whiteSpace: 'nowrap' }}
+                        onClick={async () => {
+                          const val = document.getElementById('notif-email').value
+                          await sb().from('salons').update({ email: val }).eq('id', salon.id)
+                          alert('Saved!')
+                        }}>Save</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card" style={{ padding: '28px' }}>
+                <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>What Fires Automatically</div>
+                {[
+                  ['New booking', 'You get a text the moment someone books through your page'],
+                  ['24hr reminder', 'Client gets an automatic reminder the day before'],
+                  ['1hr reminder', 'Client gets a reminder 1 hour before their appointment'],
+                  ['After visit', 'Review request goes out automatically after each appointment'],
+                  ['45 days quiet', 'Win-back text goes to any client who hasn\'t returned'],
+                  ['Birthday', 'Special offer goes out on the client\'s birthday'],
+                ].map(([title, desc], i) => (
+                  <div key={i} style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'flex-start' }}>
+                    <span style={{ color: 'var(--gold)', fontSize: 10, marginTop: 4, flexShrink: 0 }}>✦</span>
+                    <div>
+                      <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
