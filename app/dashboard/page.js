@@ -159,9 +159,10 @@ export default function Dashboard() {
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             {salon.phone && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{salon.phone}</span>}
-            <span className="cinzel" style={{ fontSize: 10, letterSpacing: '.15em', color: 'var(--gold)', border: '1px solid var(--border)', padding: '8px 16px', cursor: 'pointer' }}>
-              View My Site →
-            </span>
+            <a href={`/book/${salon.slug}`} target="_blank" rel="noreferrer"
+              className="cinzel" style={{ fontSize: 10, letterSpacing: '.15em', color: 'var(--gold)', border: '1px solid var(--border)', padding: '8px 16px', cursor: 'pointer', textDecoration: 'none' }}>
+              Booking Page →
+            </a>
           </div>
         </div>
 
