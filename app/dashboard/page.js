@@ -43,6 +43,14 @@ export default function Dashboard() {
   })
   const [settingsSaving, setSettingsSaving] = useState(false)
 
+  // === Twilio / SMS state ===
+  const [twilioForm, setTwilioForm] = useState({ twilio_account_sid: '', twilio_auth_token: '', twilio_phone_number: '' })
+  const [twilioSaving, setTwilioSaving] = useState(false)
+  const [testPhone, setTestPhone] = useState('')
+  const [testSending, setTestSending] = useState(false)
+  const [testResult, setTestResult] = useState('')
+  const [smsLog, setSmsLog] = useState([])
+
   // === Conversations state ===
   const [selectedConvoClient, setSelectedConvoClient] = useState(null)
   const [convoMessages, setConvoMessages] = useState([])
@@ -106,6 +114,14 @@ export default function Dashboard() {
           setScheduleSettings(prev => ({ ...prev, ...parsed }))
         } catch {}
       }
+      setTwilioForm({
+        twilio_account_sid: salon.twilio_account_sid || '',
+        twilio_auth_token: salon.twilio_auth_token || '',
+        twilio_phone_number: salon.twilio_phone_number || ''
+      })
+      // Load SMS log
+      sb().from('sms_log').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(50)
+        .then(({ data }) => setSmsLog(data || []))
     }
   }, [salon])
 
@@ -170,6 +186,77 @@ export default function Dashboard() {
       alert('Settings saved!')
     } catch { alert('Error saving settings.') }
     setSettingsSaving(false)
+  }
+
+  // --- Twilio save ---
+  const saveTwilio = async () => {
+    setTwilioSaving(true)
+    try {
+      await sb().from('salons').update({
+        twilio_account_sid: twilioForm.twilio_account_sid,
+        twilio_auth_token: twilioForm.twilio_auth_token,
+        twilio_phone_number: twilioForm.twilio_phone_number
+      }).eq('id', salon.id)
+      const updated = { ...salon, ...twilioForm }
+      setSalon(updated)
+      localStorage.setItem('sm_salon', JSON.stringify(updated))
+      alert('Twilio credentials saved!')
+    } catch { alert('Error saving Twilio credentials.') }
+    setTwilioSaving(false)
+  }
+
+  // --- Test SMS ---
+  const sendTestSms = async () => {
+    if (!testPhone.trim()) return
+    setTestSending(true); setTestResult('')
+    try {
+      const res = await fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salon_id: salon.id,
+          to: testPhone,
+          message: `Test from ${salon.shop_name || 'ServiceMind'}! Your SMS automations are working.`,
+          trigger_type: 'test'
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setTestResult('Sent! Check your phone.')
+        // Refresh SMS log
+        const { data: log } = await sb().from('sms_log').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(50)
+        setSmsLog(log || [])
+      } else {
+        setTestResult('Failed: ' + (data.error || 'Unknown error'))
+      }
+    } catch (e) { setTestResult('Error: ' + e.message) }
+    setTestSending(false)
+  }
+
+  // --- Trigger automation (for manual fire) ---
+  const fireAutomation = async (triggerType, clientPhone, clientName) => {
+    try {
+      const res = await fetch('/api/trigger-automation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salon_id: salon.id,
+          trigger_type: triggerType,
+          client_phone: clientPhone,
+          client_name: clientName,
+          service_name: '',
+          booking_date: new Date().toLocaleDateString()
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert(`Sent ${data.sent} message(s)!`)
+        const { data: log } = await sb().from('sms_log').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(50)
+        setSmsLog(log || [])
+      } else {
+        alert('Error: ' + (data.error || 'Failed'))
+      }
+    } catch (e) { alert('Error: ' + e.message) }
   }
 
   // --- Conversation actions ---
@@ -1168,6 +1255,79 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Twilio SMS Setup */}
+              <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>SMS Setup</div>
+                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
+                  Connect <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Twilio</em> to send texts
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 28 }}>
+                  Your automations use Twilio to send real SMS messages to clients. Enter your credentials from twilio.com/console.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+                  <div>
+                    <FieldLabel>Account SID</FieldLabel>
+                    <input className="input" placeholder="AC..." value={twilioForm.twilio_account_sid}
+                      onChange={e => setTwilioForm(f => ({ ...f, twilio_account_sid: e.target.value }))} />
+                  </div>
+                  <div>
+                    <FieldLabel>Auth Token</FieldLabel>
+                    <input className="input" type="password" placeholder="Your auth token" value={twilioForm.twilio_auth_token}
+                      onChange={e => setTwilioForm(f => ({ ...f, twilio_auth_token: e.target.value }))} />
+                  </div>
+                  <div>
+                    <FieldLabel>Twilio Phone Number</FieldLabel>
+                    <input className="input" placeholder="+1234567890" value={twilioForm.twilio_phone_number}
+                      onChange={e => setTwilioForm(f => ({ ...f, twilio_phone_number: e.target.value }))} />
+                  </div>
+                </div>
+                <button onClick={saveTwilio} disabled={twilioSaving}
+                  className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: twilioSaving ? .5 : 1 }}>
+                  {twilioSaving ? 'Saving...' : 'Save Twilio Credentials'}
+                </button>
+
+                {/* Test SMS */}
+                {twilioForm.twilio_account_sid && (
+                  <div style={{ marginTop: 28, paddingTop: 28, borderTop: '1px solid var(--border-dim)' }}>
+                    <FieldLabel>Send a Test Text</FieldLabel>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input className="input" placeholder="Your phone number" value={testPhone}
+                        onChange={e => setTestPhone(e.target.value)} style={{ flex: 1 }} />
+                      <button onClick={sendTestSms} disabled={testSending}
+                        className="btn-gold" style={{ padding: '14px 24px', fontSize: 10, opacity: testSending ? .5 : 1, whiteSpace: 'nowrap' }}>
+                        {testSending ? 'Sending...' : 'Send Test'}
+                      </button>
+                    </div>
+                    {testResult && (
+                      <div style={{ fontSize: 12, marginTop: 10, color: testResult.includes('Sent') ? 'var(--green)' : 'var(--red)' }}>
+                        {testResult}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* SMS Log */}
+              {smsLog.length > 0 && (
+                <div className="card" style={{ padding: '28px', marginBottom: 20 }}>
+                  <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Recent SMS Activity</div>
+                  <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                    {smsLog.slice(0, 20).map(s => (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 0', borderBottom: '1px solid var(--border-dim)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.status === 'sent' ? 'var(--green)' : 'var(--red)', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 2 }}>{s.to_phone}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.message}</div>
+                        </div>
+                        <div style={{ fontSize: 10, color: s.status === 'sent' ? 'var(--green)' : 'var(--red)', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '.1em' }}>{s.status}</div>
+                        <div style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>{timeAgo(s.created_at)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="card" style={{ padding: '28px' }}>
                 <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>What Fires Automatically</div>
