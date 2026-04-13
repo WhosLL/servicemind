@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../../../lib/supabase'
 import '../../globals.css'
 
@@ -31,20 +31,25 @@ function getSlots(dayHours) {
   return slots
 }
 
-function getNext14Days(hours) {
-  const days = []
-  const today = new Date()
-  for (let i = 1; i <= 14; i++) {
-    const d = new Date(today)
-    d.setDate(today.getDate() + i)
-    const dayKey = DAYS[d.getDay()]
-    if (hours?.[dayKey]) days.push({ date: d, dayKey, hours: hours[dayKey] })
-  }
-  return days
-}
-
 function formatDate(d) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function isOpen(date, hours) {
+  if (!hours) return false
+  const dayKey = DAYS[date.getDay()]
+  return !!hours?.[dayKey]
+}
+
+function getDayHours(date, hours) {
+  const dayKey = DAYS[date.getDay()]
+  return hours?.[dayKey] || null
+}
+
+function getMonthDays(year, month) {
+  const firstDay = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  return { firstDay, daysInMonth }
 }
 
 export default function BookingPage({ params }) {
@@ -102,8 +107,9 @@ export default function BookingPage({ params }) {
   const mainServices = services.filter(s => !s.is_addon)
   const addonServices = services.filter(s => s.is_addon)
   const mainCategories = [...new Set(mainServices.map(s => s.category))].filter(Boolean)
-  const availableDays = salon ? getNext14Days(salon.hours) : []
-  const slots = selectedDay ? getSlots(selectedDay.hours) : []
+  const today = new Date()
+  const [calMonth, setCalMonth] = useState(today.getMonth())
+  const [calYear, setCalYear] = useState(today.getFullYear())
 
   const gold = 'var(--gold)'
   const S = {
@@ -262,50 +268,107 @@ export default function BookingPage({ params }) {
         )}
 
         {/* Step 2: Pick Date & Time */}
-        {step === 2 && (
-          <div>
-            <button onClick={() => addonServices.length > 0 ? setStep(1.5) : setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 11, cursor: 'pointer', marginBottom: 20, padding: 0, letterSpacing: '.1em' }}>← Back</button>
-            <h2 className="cormorant" style={{ fontSize: 36, fontWeight: 300, marginBottom: 8 }}>
-              Pick a <em style={{ color: gold, fontStyle: 'italic' }}>date & time.</em>
-            </h2>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 28 }}>
-              {selectedService.name} · ${selectedService.price} · {selectedService.duration_minutes} min
-            </div>
+        {step === 2 && (() => {
+          const { firstDay, daysInMonth } = getMonthDays(calYear, calMonth)
+          const monthName = new Date(calYear, calMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          const slots = selectedDay ? getSlots(getDayHours(selectedDay.date, salon.hours)) : []
+          const canGoPrev = calYear > today.getFullYear() || calMonth > today.getMonth()
+          const canGoNext = calYear < today.getFullYear() + 1
 
-            <div style={{ marginBottom: 28 }}>
-              <span style={S.label}>Available Dates</span>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {availableDays.map((day, i) => (
-                  <button key={i} onClick={() => { setSelectedDay(day); setSelectedTime(null) }}
-                    style={{ padding: '10px 16px', border: `1px solid ${selectedDay === day ? gold : 'var(--border-dim)'}`, background: selectedDay === day ? 'rgba(201,168,76,.08)' : 'var(--dark)', color: selectedDay === day ? gold : 'var(--text)', fontSize: 12, cursor: 'pointer', transition: 'all .2s', whiteSpace: 'nowrap' }}>
-                    {formatDate(day.date)}
-                  </button>
-                ))}
+          return (
+            <div>
+              <button onClick={() => addonServices.length > 0 ? setStep(1.5) : setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 11, cursor: 'pointer', marginBottom: 20, padding: 0, letterSpacing: '.1em' }}>← Back</button>
+              <h2 className="cormorant" style={{ fontSize: 36, fontWeight: 300, marginBottom: 8 }}>
+                Pick a <em style={{ color: gold, fontStyle: 'italic' }}>date & time.</em>
+              </h2>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 28 }}>
+                {selectedService.name} · ${selectedService.price} · {selectedService.duration_minutes} min
               </div>
-            </div>
 
-            {selectedDay && (
-              <div style={{ marginBottom: 32 }}>
-                <span style={S.label}>Available Times</span>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {slots.map((slot, i) => (
-                    <button key={i} onClick={() => setSelectedTime(slot)}
-                      style={{ padding: '10px 16px', border: `1px solid ${selectedTime === slot ? gold : 'var(--border-dim)'}`, background: selectedTime === slot ? 'rgba(201,168,76,.08)' : 'var(--dark)', color: selectedTime === slot ? gold : 'var(--text)', fontSize: 12, cursor: 'pointer', transition: 'all .2s' }}>
-                      {slot}
-                    </button>
+              {/* Calendar */}
+              <div style={{ border: '1px solid var(--border-dim)', marginBottom: 24 }}>
+                {/* Month nav */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border-dim)' }}>
+                  <button onClick={() => { if (!canGoPrev) return; if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }}
+                    style={{ background: 'none', border: 'none', color: canGoPrev ? 'var(--text)' : 'var(--border-dim)', cursor: canGoPrev ? 'pointer' : 'default', fontSize: 16, padding: '4px 8px' }}>‹</button>
+                  <span className="cinzel" style={{ fontSize: 11, letterSpacing: '.2em', color: gold }}>{monthName}</span>
+                  <button onClick={() => { if (!canGoNext) return; if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }}
+                    style={{ background: 'none', border: 'none', color: canGoNext ? 'var(--text)' : 'var(--border-dim)', cursor: canGoNext ? 'pointer' : 'default', fontSize: 16, padding: '4px 8px' }}>›</button>
+                </div>
+
+                {/* Day headers */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--border-dim)' }}>
+                  {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+                    <div key={d} style={{ textAlign: 'center', padding: '8px 0', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted)' }}>{d}</div>
                   ))}
                 </div>
-              </div>
-            )}
 
-            <button onClick={() => { if (!selectedDay || !selectedTime) { setErr('Please select a date and time.'); return } setErr(''); setStep(3) }}
-              disabled={!selectedDay || !selectedTime} className="btn-gold"
-              style={{ padding: '16px 40px', opacity: selectedDay && selectedTime ? 1 : .4 }}>
-              Continue →
-            </button>
-            {err && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 12 }}>{err}</div>}
-          </div>
-        )}
+                {/* Day grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                  {/* Empty cells before first day */}
+                  {Array.from({ length: firstDay }).map((_, i) => (
+                    <div key={`e${i}`} style={{ padding: '12px 0', borderRight: '1px solid var(--border-dim)', borderBottom: '1px solid var(--border-dim)' }} />
+                  ))}
+
+                  {/* Day cells */}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1
+                    const date = new Date(calYear, calMonth, day)
+                    const isPast = date <= today
+                    const open = isOpen(date, salon.hours)
+                    const isSelected = selectedDay?.date?.toDateString() === date.toDateString()
+                    const clickable = !isPast && open
+
+                    return (
+                      <button key={day}
+                        onClick={() => { if (!clickable) return; setSelectedDay({ date, dayKey: DAYS[date.getDay()], hours: getDayHours(date, salon.hours) }); setSelectedTime(null) }}
+                        style={{
+                          padding: '12px 0', textAlign: 'center', fontSize: 13,
+                          background: isSelected ? gold : 'transparent',
+                          color: isSelected ? '#080808' : isPast ? 'var(--border-dim)' : open ? 'var(--text)' : 'var(--border-dim)',
+                          border: 'none', borderRight: '1px solid var(--border-dim)', borderBottom: '1px solid var(--border-dim)',
+                          cursor: clickable ? 'pointer' : 'default',
+                          fontWeight: isSelected ? 600 : 300,
+                          position: 'relative',
+                        }}>
+                        {day}
+                        {open && !isPast && !isSelected && (
+                          <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: gold }} />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Time slots */}
+              {selectedDay && (
+                <div style={{ marginBottom: 28 }}>
+                  <span style={S.label}>Available Times — {formatDate(selectedDay.date)}</span>
+                  {slots.length === 0 ? (
+                    <div style={{ fontSize: 13, color: 'var(--muted)', padding: '16px 0' }}>No times available for this day.</div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                      {slots.map((slot, i) => (
+                        <button key={i} onClick={() => setSelectedTime(slot)}
+                          style={{ padding: '11px 8px', border: `1px solid ${selectedTime === slot ? gold : 'var(--border-dim)'}`, background: selectedTime === slot ? gold : 'var(--dark)', color: selectedTime === slot ? '#080808' : 'var(--text)', fontSize: 12, cursor: 'pointer', transition: 'all .15s', textAlign: 'center', fontWeight: selectedTime === slot ? 600 : 300 }}>
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button onClick={() => { if (!selectedDay || !selectedTime) { setErr('Please select a date and time.'); return } setErr(''); setStep(3) }}
+                disabled={!selectedDay || !selectedTime} className="btn-gold"
+                style={{ padding: '16px 40px', opacity: selectedDay && selectedTime ? 1 : .4 }}>
+                Continue →
+              </button>
+              {err && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 12 }}>{err}</div>}
+            </div>
+          )
+        })()}
 
         {/* Step 3: Client Info */}
         {step === 3 && (
