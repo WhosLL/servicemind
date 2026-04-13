@@ -11,7 +11,7 @@ const NAV = [
   { id: 'reviews', label: 'Reviews' },
   { id: 'campaigns', label: 'Automations' },
   { id: 'ai', label: 'AI Advisor' },
-  { id: 'ghl', label: 'GHL Setup' },
+  { id: 'ghl', label: 'Settings' },
 ]
 
 export default function Dashboard() {
@@ -71,8 +71,9 @@ export default function Dashboard() {
     await sb().from('salons').update({ ghl_api_key: ghlKey }).eq('id', salon.id)
     alert('GHL API key saved. Your automations will now sync.')
   }
-  const askAi = async () => {
-    if (!aiQuery.trim()) return
+  const askAi = async (overrideQuery) => {
+    const query = overrideQuery || aiQuery
+    if (!query.trim()) return
     setAiLoading(true); setAiResponse('')
     const { appointments, reviews, clients, campaigns } = data
     const today = new Date().toISOString().split('T')[0]
@@ -88,13 +89,13 @@ export default function Dashboard() {
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1000,
           system: `You are the AI business advisor for ${salon.shop_name}, a ${salon.salon_type} owned by ${salon.owner_name} in ${salon.city}, ${salon.state}. You have access to their business data and your job is to give direct, actionable advice to help them grow. Be specific, concise, and confident. Never hedge. Business context: ${context}`,
-          messages: [{ role: 'user', content: aiQuery }]
+          messages: [{ role: 'user', content: query }]
         })
       })
       const d = await res.json()
       const text = d.content?.map(c => c.text || '').join('') || 'Unable to get a response right now.'
       setAiResponse(text)
-      await sb().from('ai_conversations').insert([{ salon_id: salon.id, type: 'advisor', channel: 'web', messages: [{ role: 'user', content: aiQuery }, { role: 'assistant', content: text }], resolved: true }])
+      await sb().from('ai_conversations').insert([{ salon_id: salon.id, type: 'advisor', channel: 'web', messages: [{ role: 'user', content: query }, { role: 'assistant', content: text }], resolved: true }])
     } catch { setAiResponse('AI advisor is temporarily unavailable. Please try again.') }
     setAiLoading(false)
   }
@@ -296,7 +297,7 @@ export default function Dashboard() {
           {!loading && tab === 'campaigns' && (
             <div>
               <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 32 }}>
-                Toggle automations on/off. When active, they run through GHL automatically. Messages use <span style={{ color: 'var(--gold)' }}>{'{{variables}}'}</span> filled per client.
+                Toggle your automations on or off. When enabled, these messages go out automatically to clients via SMS. Variables like <span style={{ color: 'var(--gold)' }}>{'{{shop_name}}'}</span> are filled in automatically.
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {campaigns.map(c => (
@@ -337,22 +338,20 @@ export default function Dashboard() {
                   Your AI knows your shop — its revenue, appointment patterns, client base, and ratings. Ask it for real advice.
                 </p>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', color: 'var(--text)', padding: '14px 18px', fontSize: 13, fontFamily: 'inherit', fontWeight: 300, outline: 'none', borderRadius: 0, flex: 1, transition: 'border-color .2s' }}
+                  <input className="input"
                     placeholder="e.g. How can I increase revenue this month?"
                     value={aiQuery} onChange={e => setAiQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && askAi()}
-                    onFocus={e => e.target.style.borderColor = 'var(--gold-dim)'}
-                    onBlur={e => e.target.style.borderColor = 'var(--border-dim)'} />
+                    style={{ flex: 1 }} />
                   <button onClick={askAi} disabled={aiLoading || !aiQuery.trim()} className="btn-gold" style={{ padding: '14px 28px', opacity: aiLoading || !aiQuery.trim() ? .5 : 1 }}>
                     {aiLoading ? '...' : 'Ask →'}
                   </button>
                 </div>
-                {/* Quick prompts */}
+                {/* Quick prompts - click to ask immediately */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                   {['What should I focus on this week?', 'Why are my no-shows high?', 'How do I get more clients?', 'Write me a slow day promo text'].map(q => (
-                    <button key={q} onClick={() => { setAiQuery(q); }} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '6px 14px', fontSize: 11, cursor: 'pointer', borderRadius: 0, transition: 'all .15s' }}
-                      onMouseOver={e => { e.target.style.borderColor = 'var(--gold-dim)'; e.target.style.color = 'var(--text)' }}
-                      onMouseOut={e => { e.target.style.borderColor = 'var(--border-dim)'; e.target.style.color = 'var(--muted)' }}>
+                    <button key={q} onClick={() => { setAiQuery(q); askAi(q) }}
+                      style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '6px 14px', fontSize: 11, cursor: 'pointer', borderRadius: 0 }}>
                       {q}
                     </button>
                   ))}
@@ -368,29 +367,63 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* GHL SETUP */}
+          {/* SETTINGS */}
           {!loading && tab === 'ghl' && (
             <div>
               <div className="card-gold" style={{ padding: '36px', marginBottom: 20 }}>
                 <div className="gold-line-top" />
-                <div className="cinzel" style={{ fontSize: 11, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 24 }}>How to Connect GoHighLevel</div>
-                {['Log into app.gohighlevel.com', 'Click your profile photo → Settings', 'In the sidebar, find "API Keys"', 'Click "Create New Key" → name it ServiceMind → copy it', 'Paste it below and save'].map((s, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-                    <span className="cinzel" style={{ color: 'var(--gold)', fontSize: 13, flexShrink: 0, minWidth: 24 }}>0{i + 1}</span>
-                    <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{s}</span>
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Notifications</div>
+                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
+                  Where should we send <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>alerts?</em>
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 28 }}>
+                  Get notified when a new appointment is booked, a client leaves a review, or an automation fires.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Your Phone Number (for alerts)</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input className="input" placeholder={salon.phone || '(404) 000-0000'} defaultValue={salon.phone || ''}
+                        id="notif-phone" style={{ flex: 1 }} />
+                      <button className="btn-gold" style={{ padding: '14px 24px', whiteSpace: 'nowrap' }}
+                        onClick={async () => {
+                          const val = document.getElementById('notif-phone').value
+                          await sb().from('salons').update({ phone: val }).eq('id', salon.id)
+                          alert('Saved!')
+                        }}>Save</button>
+                    </div>
                   </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                <input style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', color: 'var(--text)', padding: '15px 18px', fontSize: 13, fontFamily: 'inherit', fontWeight: 300, outline: 'none', borderRadius: 0, flex: 1 }}
-                  type="password" placeholder="Paste your GHL API key" value={ghlKey} onChange={e => setGhlKey(e.target.value)} />
-                <button onClick={saveGhlKey} className="btn-gold" style={{ padding: '15px 28px', whiteSpace: 'nowrap' }}>Save Key</button>
+                  <div>
+                    <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Notification Email</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input className="input" type="email" placeholder={salon.email || 'you@yourshop.com'} defaultValue={salon.email || ''}
+                        id="notif-email" style={{ flex: 1 }} />
+                      <button className="btn-gold" style={{ padding: '14px 24px', whiteSpace: 'nowrap' }}
+                        onClick={async () => {
+                          const val = document.getElementById('notif-email').value
+                          await sb().from('salons').update({ email: val }).eq('id', salon.id)
+                          alert('Saved!')
+                        }}>Save</button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="card" style={{ padding: '28px' }}>
-                <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>What Connects Once You Add Your Key</div>
-                {['New clients sync to GHL contacts automatically', 'Appointments create GHL calendar events', 'Missed calls trigger the AI text back workflow', 'Review requests fire after each appointment', 'Win-back campaigns trigger at 45-day mark', 'Birthday offers go out on client birthdays'].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
-                    <span style={{ color: 'var(--gold)', fontSize: 10, marginTop: 3, flexShrink: 0 }}>✦</span>{item}
+                <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>What Fires Automatically</div>
+                {[
+                  ['New booking', 'You get a text the moment someone books through your page'],
+                  ['24hr reminder', 'Client gets an automatic reminder the day before'],
+                  ['1hr reminder', 'Client gets a reminder 1 hour before their appointment'],
+                  ['After visit', 'Review request goes out automatically after each appointment'],
+                  ['45 days quiet', 'Win-back text goes to any client who hasn't returned'],
+                  ['Birthday', 'Special offer goes out on the client's birthday'],
+                ].map(([title, desc], i) => (
+                  <div key={i} style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'flex-start' }}>
+                    <span style={{ color: 'var(--gold)', fontSize: 10, marginTop: 4, flexShrink: 0 }}>✦</span>
+                    <div>
+                      <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{desc}</div>
+                    </div>
                   </div>
                 ))}
               </div>
