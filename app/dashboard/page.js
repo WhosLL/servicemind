@@ -33,9 +33,9 @@ export default function Dashboard() {
   const [aiLoading, setAiLoading] = useState(false)
   const [ghlKey, setGhlKey] = useState('')
 
-  if (!salon) return <div style={{ minHeight: '100vh', background: '#080808' }} />
-
   useEffect(() => { if (salon?.id) load() }, [salon?.id])
+
+  if (!salon) return <div style={{ minHeight: '100vh', background: '#080808' }} />
 
   const load = async () => {
     if (!salon?.id) return
