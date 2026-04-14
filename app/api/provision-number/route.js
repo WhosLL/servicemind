@@ -93,6 +93,21 @@ export async function POST(req) {
       return Response.json({ error: buyData.message || 'Failed to provision number' }, { status: 400 })
     }
 
+    // Set webhook URL for incoming SMS
+    const webhookUrl = `https://servicemind.vercel.app/api/sms/incoming`
+    const updateNumberUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/IncomingPhoneNumbers/${buyData.sid}.json`
+    await fetch(updateNumberUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        SmsUrl: webhookUrl,
+        SmsMethod: 'POST',
+      }),
+    })
+
     // Save to salon record
     await sb
       .from('salons')
