@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
-const sb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+let _sb
+function getSb() {
+  if (!_sb) {
+    _sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+  }
+  return _sb
+}
 
 function twimlResponse(message) {
   return new Response(
@@ -14,6 +20,7 @@ function twimlResponse(message) {
 
 export async function POST(req) {
   try {
+    const sb = getSb()
     const formData = await req.formData()
     const from = formData.get('From')
     const to = formData.get('To')
@@ -76,7 +83,7 @@ export async function POST(req) {
       return twimlResponse('Our system is temporarily unavailable. Please try again later.')
     }
 
-    const systemPrompt = `You are the AI receptionist for ${salon.shop_name}, a ${salon.salon_type} in ${salon.city}, ${salon.state}. Your job is to help clients book appointments, answer questions about services and pricing, and be friendly and professional. Available services: ${serviceList}. Hours: ${scheduleStr}. Booking link: https://servicemind.vercel.app/book/${salon.slug}. Keep replies short \u2014 this is SMS. If the client wants to book, send them the booking link. If you can\'t help, say you\'ll have someone follow up.`
+    const systemPrompt = `You are the AI receptionist for ${salon.shop_name}, a ${salon.salon_type} in ${salon.city}, ${salon.state}. Your job is to help clients book appointments, answer questions about services and pricing, and be friendly and professional. Available services: ${serviceList}. Hours: ${scheduleStr}. Booking link: https://servicemind.vercel.app/book/${salon.slug}. Keep replies short — this is SMS. If the client wants to book, send them the booking link. If you can't help, say you'll have someone follow up.`
 
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
