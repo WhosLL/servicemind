@@ -23,11 +23,14 @@ export default function Dashboard() {
   const router = useRouter()
   const [salon, setSalon] = useState(null)
   useEffect(() => {
-    try {
-      const s = localStorage.getItem('sm_salon')
-      if (!s) { router.push('/login'); return }
-      setSalon(JSON.parse(s))
-    } catch { router.push('/login') }
+    const loadSalon = async () => {
+      const { data: { user }, error } = await sb().auth.getUser()
+      if (error || !user) { router.push('/login'); return }
+      const { data: salons } = await sb().from('salons').select('*').eq('user_id', user.id).limit(1)
+      if (!salons || salons.length === 0) { router.push('/login'); return }
+      setSalon(salons[0])
+    }
+    loadSalon()
   }, [])
 
   const [tab, setTab] = useState('overview')
@@ -125,7 +128,7 @@ export default function Dashboard() {
     if (!salon?.id) return
     const [sv, ap, rv, cl, cp, ai] = await Promise.all([
       sb().from('salon_services').select('*').eq('salon_id', salon.id).order('sort_order'),
-      sb().from('appointments').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(100),
+      sb().from('salon_appointments').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(100),
       sb().from('salon_reviews').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }),
       sb().from('clients').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(100),
       sb().from('salon_campaigns').select('*').eq('salon_id', salon.id).order('campaign_type'),
@@ -156,7 +159,7 @@ export default function Dashboard() {
     setData(d => ({ ...d, campaigns: d.campaigns.map(x => x.id === c.id ? upd : x) }))
   }
   const updateApptStatus = async (id, status) => {
-    await sb().from('appointments').update({ status }).eq('id', id)
+    await sb().from('salon_appointments').update({ status }).eq('id', id)
     setData(d => ({ ...d, appointments: d.appointments.map(a => a.id === id ? { ...a, status } : a) }))
   }
 
@@ -176,7 +179,7 @@ export default function Dashboard() {
       }).eq('id', salon.id)
       const updated = { ...salon, ...settingsForm }
       setSalon(updated)
-      localStorage.setItem('sm_salon', JSON.stringify(updated))
+)
       alert('Settings saved!')
     } catch { alert('Error saving settings.') }
     setSettingsSaving(false)
@@ -195,7 +198,7 @@ export default function Dashboard() {
       if (data.success) {
         const updated = { ...salon, twilio_phone_number: data.phone_number }
         setSalon(updated)
-        localStorage.setItem('sm_salon', JSON.stringify(updated))
+)
         alert(data.already_provisioned ? 'Texting is already enabled!' : 'Texting enabled! Your number: ' + data.phone_number)
       } else {
         alert('Error: ' + (data.error || 'Could not enable texting'))
@@ -319,7 +322,7 @@ export default function Dashboard() {
   const loadClientHistory = async (client) => {
     setSelectedClient(client)
     setClientHistoryLoading(true)
-    const { data: appts } = await sb().from('appointments').select('*')
+    const { data: appts } = await sb().from('salon_appointments').select('*')
       .eq('salon_id', salon.id)
       .eq('client_phone', client.phone)
       .order('appointment_date', { ascending: false })
@@ -389,7 +392,7 @@ export default function Dashboard() {
       await sb().from('salons').update({ schedule_settings: scheduleSettings }).eq('id', salon.id)
       const updated = { ...salon, schedule_settings: scheduleSettings }
       setSalon(updated)
-      localStorage.setItem('sm_salon', JSON.stringify(updated))
+)
       alert('Schedule saved!')
     } catch { alert('Error saving schedule.') }
     setScheduleSaving(false)
@@ -405,22 +408,16 @@ export default function Dashboard() {
     const todayAppts = appointments.filter(a => a.appointment_date === today).length
     const revenue = appointments.filter(a => a.status === 'completed').reduce((s, a) => s + (a.total_price || 0), 0)
     const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : 'none'
-    const context = `Shop: ${salon.shop_name} | Owner: ${salon.owner_name} | Type: ${salon.salon_type} | City: ${salon.city}, ${salon.state} | Today's appointments: ${todayAppts} | Total clients: ${clients.length} | Completed appointments revenue: $${revenue} | Avg review rating: ${avgRating} | Active campaigns: ${campaigns.filter(c => c.is_active).length}`
+    const context = `You are the AI business advisor for ${salon.shop_name}, a ${salon.salon_type} owned by ${salon.owner_name} in ${salon.city}, ${salon.state}. You have access to their business data and your job is to give direct, actionable advice to help them grow. Be specific, concise, and confident. Never hedge. Business context: Shop: ${salon.shop_name} | Owner: ${salon.owner_name} | Type: ${salon.salon_type} | City: ${salon.city}, ${salon.state} | Today's appointments: ${todayAppts} | Total clients: ${clients.length} | Completed appointments revenue: $${revenue} | Avg review rating: ${avgRating} | Active campaigns: ${campaigns.filter(c => c.is_active).length}`
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const { data: { session } } = await sb().auth.getSession()
+      const res = await fetch('/api/advisor', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system: `You are the AI business advisor for ${salon.shop_name}, a ${salon.salon_type} owned by ${salon.owner_name} in ${salon.city}, ${salon.state}. You have access to their business data and your job is to give direct, actionable advice to help them grow. Be specific, concise, and confident. Never hedge. Business context: ${context}`,
-          messages: [{ role: 'user', content: query }]
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ salon_id: salon.id, message: query, context })
       })
       const d = await res.json()
-      const text = d.content?.map(c => c.text || '').join('') || 'Unable to get a response right now.'
-      setAiResponse(text)
-      await sb().from('ai_conversations').insert([{ salon_id: salon.id, type: 'advisor', channel: 'web', messages: [{ role: 'user', content: query }, { role: 'assistant', content: text }], resolved: true }])
+      setAiResponse(d.response || d.error || 'Unable to get a response right now.')
     } catch { setAiResponse('AI advisor is temporarily unavailable. Please try again.') }
     setAiLoading(false)
   }
@@ -506,7 +503,7 @@ export default function Dashboard() {
             <Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial'} />
             <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>{salon.subscription_status}</span>
           </div>
-          <button onClick={() => { localStorage.removeItem('sm_salon'); router.push('/') }} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center' }}>Log Out</button>
+          <button onClick={() => sb().auth.signOut().then(() => router.push('/login'))} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center' }}>Log Out</button>
         </div>
       </div>
 
