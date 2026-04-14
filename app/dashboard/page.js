@@ -43,9 +43,8 @@ export default function Dashboard() {
   })
   const [settingsSaving, setSettingsSaving] = useState(false)
 
-  // === Twilio / SMS state ===
-  const [twilioForm, setTwilioForm] = useState({ twilio_account_sid: '', twilio_auth_token: '', twilio_phone_number: '' })
-  const [twilioSaving, setTwilioSaving] = useState(false)
+  // === SMS state ===
+  const [provisioning, setProvisioning] = useState(false)
   const [testPhone, setTestPhone] = useState('')
   const [testSending, setTestSending] = useState(false)
   const [testResult, setTestResult] = useState('')
@@ -114,11 +113,6 @@ export default function Dashboard() {
           setScheduleSettings(prev => ({ ...prev, ...parsed }))
         } catch {}
       }
-      setTwilioForm({
-        twilio_account_sid: salon.twilio_account_sid || '',
-        twilio_auth_token: salon.twilio_auth_token || '',
-        twilio_phone_number: salon.twilio_phone_number || ''
-      })
       // Load SMS log
       sb().from('sms_log').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(50)
         .then(({ data }) => setSmsLog(data || []))
@@ -188,21 +182,26 @@ export default function Dashboard() {
     setSettingsSaving(false)
   }
 
-  // --- Twilio save ---
-  const saveTwilio = async () => {
-    setTwilioSaving(true)
+  // --- Enable texting (auto-provision a phone number) ---
+  const enableTexting = async () => {
+    setProvisioning(true)
     try {
-      await sb().from('salons').update({
-        twilio_account_sid: twilioForm.twilio_account_sid,
-        twilio_auth_token: twilioForm.twilio_auth_token,
-        twilio_phone_number: twilioForm.twilio_phone_number
-      }).eq('id', salon.id)
-      const updated = { ...salon, ...twilioForm }
-      setSalon(updated)
-      localStorage.setItem('sm_salon', JSON.stringify(updated))
-      alert('Twilio credentials saved!')
-    } catch { alert('Error saving Twilio credentials.') }
-    setTwilioSaving(false)
+      const res = await fetch('/api/provision-number', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salon_id: salon.id })
+      })
+      const data = await res.json()
+      if (data.success) {
+        const updated = { ...salon, twilio_phone_number: data.phone_number }
+        setSalon(updated)
+        localStorage.setItem('sm_salon', JSON.stringify(updated))
+        alert(data.already_provisioned ? 'Texting is already enabled!' : 'Texting enabled! Your number: ' + data.phone_number)
+      } else {
+        alert('Error: ' + (data.error || 'Could not enable texting'))
+      }
+    } catch (e) { alert('Error: ' + e.message) }
+    setProvisioning(false)
   }
 
   // --- Test SMS ---
@@ -1256,56 +1255,53 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Twilio SMS Setup */}
+              {/* SMS Setup */}
               <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
                 <div className="gold-line-top" />
-                <div className="eyebrow" style={{ marginBottom: 20 }}>SMS Setup</div>
-                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
-                  Connect <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Twilio</em> to send texts
-                </h3>
-                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 28 }}>
-                  Your automations use Twilio to send real SMS messages to clients. Enter your credentials from twilio.com/console.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
-                  <div>
-                    <FieldLabel>Account SID</FieldLabel>
-                    <input className="input" placeholder="AC..." value={twilioForm.twilio_account_sid}
-                      onChange={e => setTwilioForm(f => ({ ...f, twilio_account_sid: e.target.value }))} />
-                  </div>
-                  <div>
-                    <FieldLabel>Auth Token</FieldLabel>
-                    <input className="input" type="password" placeholder="Your auth token" value={twilioForm.twilio_auth_token}
-                      onChange={e => setTwilioForm(f => ({ ...f, twilio_auth_token: e.target.value }))} />
-                  </div>
-                  <div>
-                    <FieldLabel>Twilio Phone Number</FieldLabel>
-                    <input className="input" placeholder="+1234567890" value={twilioForm.twilio_phone_number}
-                      onChange={e => setTwilioForm(f => ({ ...f, twilio_phone_number: e.target.value }))} />
-                  </div>
-                </div>
-                <button onClick={saveTwilio} disabled={twilioSaving}
-                  className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: twilioSaving ? .5 : 1 }}>
-                  {twilioSaving ? 'Saving...' : 'Save Twilio Credentials'}
-                </button>
-
-                {/* Test SMS */}
-                {twilioForm.twilio_account_sid && (
-                  <div style={{ marginTop: 28, paddingTop: 28, borderTop: '1px solid var(--border-dim)' }}>
-                    <FieldLabel>Send a Test Text</FieldLabel>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input className="input" placeholder="Your phone number" value={testPhone}
-                        onChange={e => setTestPhone(e.target.value)} style={{ flex: 1 }} />
-                      <button onClick={sendTestSms} disabled={testSending}
-                        className="btn-gold" style={{ padding: '14px 24px', fontSize: 10, opacity: testSending ? .5 : 1, whiteSpace: 'nowrap' }}>
-                        {testSending ? 'Sending...' : 'Send Test'}
-                      </button>
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Text Messages</div>
+                {!salon.twilio_phone_number ? (
+                  <>
+                    <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
+                      Enable <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Text Messages</em>
+                    </h3>
+                    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 28 }}>
+                      Send appointment reminders, review requests, and marketing texts to your clients automatically. One tap and you're live.
+                    </p>
+                    <button onClick={enableTexting} disabled={provisioning}
+                      className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: provisioning ? .5 : 1 }}>
+                      {provisioning ? 'Setting up...' : 'Enable Texting'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
+                      Texting is <em style={{ color: 'var(--green)', fontStyle: 'italic' }}>Active</em>
+                    </h3>
+                    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 8 }}>
+                      Your clients receive texts from this number:
+                    </p>
+                    <div style={{ fontSize: 20, color: 'var(--gold)', fontWeight: 500, marginBottom: 28, letterSpacing: '.05em' }}>
+                      {salon.twilio_phone_number}
                     </div>
-                    {testResult && (
-                      <div style={{ fontSize: 12, marginTop: 10, color: testResult.includes('Sent') ? 'var(--green)' : 'var(--red)' }}>
-                        {testResult}
+
+                    {/* Test SMS */}
+                    <div style={{ paddingTop: 20, borderTop: '1px solid var(--border-dim)' }}>
+                      <FieldLabel>Send a Test Text</FieldLabel>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input className="input" placeholder="Your phone number" value={testPhone}
+                          onChange={e => setTestPhone(e.target.value)} style={{ flex: 1 }} />
+                        <button onClick={sendTestSms} disabled={testSending}
+                          className="btn-gold" style={{ padding: '14px 24px', fontSize: 10, opacity: testSending ? .5 : 1, whiteSpace: 'nowrap' }}>
+                          {testSending ? 'Sending...' : 'Send Test'}
+                        </button>
                       </div>
-                    )}
-                  </div>
+                      {testResult && (
+                        <div style={{ fontSize: 12, marginTop: 10, color: testResult.includes('Sent') ? 'var(--green)' : 'var(--red)' }}>
+                          {testResult}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
 
