@@ -179,7 +179,6 @@ export default function Dashboard() {
       }).eq('id', salon.id)
       const updated = { ...salon, ...settingsForm }
       setSalon(updated)
-)
       alert('Settings saved!')
     } catch { alert('Error saving settings.') }
     setSettingsSaving(false)
@@ -198,7 +197,6 @@ export default function Dashboard() {
       if (data.success) {
         const updated = { ...salon, twilio_phone_number: data.phone_number }
         setSalon(updated)
-)
         alert(data.already_provisioned ? 'Texting is already enabled!' : 'Texting enabled! Your number: ' + data.phone_number)
       } else {
         alert('Error: ' + (data.error || 'Could not enable texting'))
@@ -392,7 +390,6 @@ export default function Dashboard() {
       await sb().from('salons').update({ schedule_settings: scheduleSettings }).eq('id', salon.id)
       const updated = { ...salon, schedule_settings: scheduleSettings }
       setSalon(updated)
-)
       alert('Schedule saved!')
     } catch { alert('Error saving schedule.') }
     setScheduleSaving(false)
@@ -1348,3 +1345,4 @@ export default function Dashboard() {
     </div>
   )
 }
+
