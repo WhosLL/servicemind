@@ -10,10 +10,9 @@ export default function App() {
 
   useEffect(() => {
     setMounted(true)
-    try {
-      const s = localStorage.getItem('sm_salon')
-      if (s) router.push('/dashboard')
-    } catch {}
+    sb().auth.getUser().then(({ data: { user } }) => {
+      if (user) router.push('/dashboard')
+    }).catch(() => {})
   }, [])
 
   if (!mounted) return <div style={{ minHeight: '100vh', background: '#080808' }} />
