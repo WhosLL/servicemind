@@ -20,7 +20,6 @@ const CLOSES = ['3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM'
 const TYPES = ['barbershop', 'nail', 'lash', 'hair', 'spa', 'tattoo', 'other']
 const DAYS = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' }
 
-// Defined OUTSIDE main component — React never remounts these on re-render
 function Progress({ step, onBack }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 44 }}>
@@ -68,9 +67,10 @@ export default function Onboard() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
-  const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', instagram: '', city: '', state: '', address: '', salon_type: 'barbershop', passcode: '' })
+  const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', password: '', instagram: '', city: '', state: '', address: '', salon_type: 'barbershop' })
   const [svcs, setSvcs] = useState([{ name: '', items: [{ name: '', price: '', duration: '30' }] }])
   const [hours, setHours] = useState({ mon: { open: '8:00 AM', close: '6:00 PM' }, tue: { open: '8:00 AM', close: '6:00 PM' }, wed: { open: '8:00 AM', close: '6:00 PM' }, thu: { open: '8:00 AM', close: '6:00 PM' }, fri: null, sat: null, sun: null })
+  const [createdSlug, setCreatedSlug] = useState('')
 
   const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   const goBack = () => step === 1 ? router.push('/') : (setStep(s => s - 1), setErr(''))
@@ -80,39 +80,84 @@ export default function Onboard() {
     setLoading(true); setErr('')
     try {
       const slug = slugify(info.shop_name) + '-' + Math.random().toString(36).slice(2, 6)
-      const { data: sd, error: se } = await sb().from('salons').insert([{ ...info, hours, slug, subscription_status: 'trial', subscription_tier: 'basic', monthly_rate: 150, onboarded: true, onboarded_at: new Date().toISOString() }]).select()
-      if (se) throw se
-      const salon = sd[0]
+
+      // Build service rows
       const svcRows = []
-      let order = 0
       for (const cat of svcs) {
         for (const item of cat.items) {
           if (item.name.trim()) {
-            svcRows.push({ salon_id: salon.id, name: item.name.trim(), price: parseFloat(item.price) || 0, duration: parseInt(item.duration) || 30, category: cat.name.trim() || 'General', sort_order: order++, is_active: true })
+            svcRows.push({ name: item.name.trim(), price: parseFloat(item.price) || 0, duration_minutes: parseInt(item.duration) || 30, category: cat.name.trim() || 'General', is_active: true })
           }
         }
       }
-      if (svcRows.length) await sb().from('salon_services').insert(svcRows)
-      await sb().from('salon_campaigns').insert(CAMPAIGNS(salon.id))
-      localStorage.setItem('sm_salon', JSON.stringify(salon))
+
+      // Call signup API (creates auth user + salon + services + campaigns)
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: info.email,
+          password: info.password,
+          salonData: {
+            shop_name: info.shop_name,
+            owner_name: info.owner_name,
+            phone: info.phone,
+            email: info.email,
+            instagram: info.instagram,
+            city: info.city,
+            state: info.state,
+            address: info.address,
+            salon_type: info.salon_type,
+            hours,
+            slug,
+            subscription_status: 'trial',
+            subscription_tier: 'basic',
+            monthly_rate: 150,
+            onboarded: true,
+            onboarded_at: new Date().toISOString(),
+            _services: svcRows,
+          }
+        })
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Signup failed')
+
+      // Sign in the user client-side
+      await sb().auth.signInWithPassword({ email: info.email, password: info.password })
+
+      setCreatedSlug(result.salon?.slug || slug)
       setStep(5)
-      setTimeout(() => router.push('/dashboard'), 2200)
-    } catch (e) { setErr('Setup failed: ' + (e.message || 'Please try again.')); setLoading(false) }
+      setTimeout(() => router.push('/dashboard'), 2500)
+    } catch (e) { setErr(e.message || 'Setup failed. Please try again.'); setLoading(false) }
   }
 
   const wp = { step, onBack: goBack, loading, err }
 
   if (step === 1) return (
     <Wrap {...wp} title="Your Shop" italic="Info." sub="This powers your website, booking page, and AI automatically."
-      onNext={() => { if (!info.shop_name || !info.owner_name || !info.phone) { setErr('Shop name, owner name, and phone are required.'); return } setErr(''); setStep(2) }}
+      onNext={() => {
+        if (!info.shop_name || !info.owner_name || !info.phone) { setErr('Shop name, owner name, and phone are required.'); return }
+        if (!info.email) { setErr('Email is required for your account.'); return }
+        if (!info.password || info.password.length < 6) { setErr('Create a password of at least 6 characters.'); return }
+        setErr(''); setStep(2)
+      }}
       canNext={!!info.shop_name}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {[['Shop Name *', 'shop_name', 'e.g. Boo Cutz'], ['Owner Name *', 'owner_name', 'e.g. Brandon McCoy'], ['Phone *', 'phone', '(404) 000-0000'], ['Email', 'email', 'you@shop.com'], ['Instagram', 'instagram', '@yourshop']].map(([label, key, ph]) => (
+        {[['Shop Name *', 'shop_name', 'e.g. Boo Cutz'], ['Owner Name *', 'owner_name', 'e.g. Brandon McCoy'], ['Phone *', 'phone', '(404) 000-0000'], ['Email *', 'email', 'you@shop.com']].map(([label, key, ph]) => (
           <div key={key}>
             <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>{label}</label>
-            <input className="input" placeholder={ph} value={info[key]} onChange={e => set(key, e.target.value)} />
+            <input className="input" placeholder={ph} value={info[key]} onChange={e => set(key, e.target.value)} type={key === 'email' ? 'email' : 'text'} autoComplete={key === 'email' ? 'email' : 'off'} />
           </div>
         ))}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Create a Password *</label>
+          <input className="input" type="password" placeholder="Minimum 6 characters" value={info.password} onChange={e => set('password', e.target.value)} autoComplete="new-password" />
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>You'll use this email & password to log into your dashboard.</div>
+        </div>
+        <div>
+          <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Instagram</label>
+          <input className="input" placeholder="@yourshop" value={info.instagram} onChange={e => set('instagram', e.target.value)} />
+        </div>
         <div>
           <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Salon Type</label>
           <select className="input" value={info.salon_type} onChange={e => set('salon_type', e.target.value)}>
@@ -133,7 +178,6 @@ export default function Onboard() {
     </Wrap>
   )
 
-  // categories: [{ name: string, items: [{ name, price, duration }] }]
   const addCategory = () => setSvcs(prev => [...prev, { name: '', items: [{ name: '', price: '', duration: '30' }] }])
   const removeCategory = (ci) => setSvcs(prev => prev.filter((_, i) => i !== ci))
   const updateCategory = (ci, val) => setSvcs(prev => { const u = [...prev]; u[ci] = { ...u[ci], name: val }; return u })
@@ -151,21 +195,10 @@ export default function Onboard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {svcs.map((cat, ci) => (
           <div key={ci} style={{ border: '1px solid var(--border-dim)', background: 'var(--dark-3)' }}>
-            {/* Category header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(201,168,76,0.04)' }}>
-              <input
-                className="input"
-                placeholder="Category name (e.g. Haircuts, Nails, Add-Ons)"
-                value={cat.name}
-                onChange={e => updateCategory(ci, e.target.value)}
-                style={{ padding: '8px 12px', fontSize: 12, fontWeight: 500, flex: 1, letterSpacing: '.05em' }}
-              />
-              <button onClick={() => removeCategory(ci)} disabled={svcs.length === 1}
-                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: svcs.length === 1 ? 'not-allowed' : 'pointer', fontSize: 18, padding: '0 4px', opacity: svcs.length === 1 ? 0.3 : 0.6, flexShrink: 0 }}>
-                ×
-              </button>
+              <input className="input" placeholder="Category name (e.g. Haircuts, Nails, Add-Ons)" value={cat.name} onChange={e => updateCategory(ci, e.target.value)} style={{ padding: '8px 12px', fontSize: 12, fontWeight: 500, flex: 1, letterSpacing: '.05em' }} />
+              <button onClick={() => removeCategory(ci)} disabled={svcs.length === 1} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: svcs.length === 1 ? 'not-allowed' : 'pointer', fontSize: 18, padding: '0 4px', opacity: svcs.length === 1 ? 0.3 : 0.6, flexShrink: 0 }}>×</button>
             </div>
-            {/* Service rows */}
             <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, padding: '0 2px 4px' }}>
                 <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Service</span>
@@ -175,43 +208,29 @@ export default function Onboard() {
               </div>
               {cat.items.map((svc, ii) => (
                 <div key={ii} style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, alignItems: 'center' }}>
-                  <input className="input" placeholder="Service name" value={svc.name}
-                    onChange={e => updateItem(ci, ii, 'name', e.target.value)}
-                    style={{ padding: '10px 12px', fontSize: 12 }} />
+                  <input className="input" placeholder="Service name" value={svc.name} onChange={e => updateItem(ci, ii, 'name', e.target.value)} style={{ padding: '10px 12px', fontSize: 12 }} />
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--gold)', fontSize: 11, pointerEvents: 'none' }}>$</span>
-                    <input className="input" type="number" placeholder="0" value={svc.price}
-                      onChange={e => updateItem(ci, ii, 'price', e.target.value)}
-                      style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
+                    <input className="input" type="number" placeholder="0" value={svc.price} onChange={e => updateItem(ci, ii, 'price', e.target.value)} style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
                   </div>
-                  <input className="input" type="number" placeholder="30" value={svc.duration}
-                    onChange={e => updateItem(ci, ii, 'duration', e.target.value)}
-                    style={{ padding: '10px 8px', fontSize: 12, textAlign: 'center' }} />
-                  <button onClick={() => removeItem(ci, ii)} disabled={cat.items.length === 1}
-                    style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: cat.items.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, opacity: cat.items.length === 1 ? 0.2 : 0.5, padding: 0 }}>
-                    ×
-                  </button>
+                  <input className="input" type="number" placeholder="30" value={svc.duration} onChange={e => updateItem(ci, ii, 'duration', e.target.value)} style={{ padding: '10px 8px', fontSize: 12, textAlign: 'center' }} />
+                  <button onClick={() => removeItem(ci, ii)} disabled={cat.items.length === 1} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: cat.items.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, opacity: cat.items.length === 1 ? 0.2 : 0.5, padding: 0 }}>×</button>
                 </div>
               ))}
-              <button onClick={() => addItem(ci)} style={{ background: 'none', border: '1px dashed var(--border-dim)', color: 'var(--muted)', padding: '8px', fontSize: 11, cursor: 'pointer', letterSpacing: '.15em', textTransform: 'uppercase', marginTop: 2 }}>
-                + Add Service
-              </button>
+              <button onClick={() => addItem(ci)} style={{ background: 'none', border: '1px dashed var(--border-dim)', color: 'var(--muted)', padding: '8px', fontSize: 11, cursor: 'pointer', letterSpacing: '.15em', textTransform: 'uppercase', marginTop: 2 }}>+ Add Service</button>
             </div>
           </div>
         ))}
-        <button onClick={addCategory} className="btn-ghost"
-          style={{ width: '100%', padding: '13px', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase' }}>
-          + Add Category
-        </button>
+        <button onClick={addCategory} className="btn-ghost" style={{ width: '100%', padding: '13px', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase' }}>+ Add Category</button>
       </div>
     </Wrap>
   )
 
   if (step === 3) return (
-    <Wrap {...wp} title="Hours &" italic="Passcode." sub="Set your available hours and create a secure passcode for your dashboard."
-      onNext={() => { if (!info.passcode || info.passcode.length < 4) { setErr('Create a passcode of at least 4 characters.'); return } setErr(''); submit() }}
+    <Wrap {...wp} title="Your" italic="Hours." sub="Set your available hours for bookings."
+      onNext={() => { setErr(''); submit() }}
       nextLabel="Launch My Platform →">
-      <div style={{ marginBottom: 32 }}>
+      <div>
         <div style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 14 }}>Operating Hours</div>
         {Object.entries(DAYS).map(([day, label]) => (
           <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', background: 'var(--dark-3)', border: '1px solid var(--border-dim)', marginBottom: 2 }}>
@@ -233,11 +252,6 @@ export default function Onboard() {
           </div>
         ))}
       </div>
-      <div>
-        <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Dashboard Passcode *</label>
-        <input className="input" type="password" placeholder="Minimum 4 characters" value={info.passcode} onChange={e => set('passcode', e.target.value)} />
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>You'll use this to log into your dashboard. Keep it safe.</div>
-      </div>
     </Wrap>
   )
 
@@ -249,7 +263,7 @@ export default function Onboard() {
         <h2 className="cormorant" style={{ fontSize: 60, fontWeight: 300, marginBottom: 20, lineHeight: 1.05 }}>
           {info.shop_name}<br />is <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>ready.</em>
         </h2>
-        <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9 }}>Your website, 8 automations, and full dashboard are live. Opening your dashboard now...</p>
+        <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9 }}>Your booking page is live. Opening your dashboard now...</p>
       </div>
     </div>
   )
