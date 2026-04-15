@@ -303,7 +303,7 @@ export default function BookPage({ params, searchParams }) {
                     style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', background: dark2, border: `1px solid ${border}`, color: '#eee', cursor: 'pointer', marginBottom: 2, textAlign: 'left' }}>
                     <div>
                       <div style={{ fontSize: 14, marginBottom: 3 }}>{svc.name}</div>
-                      <div style={{ fontSize: 11, color: muted }}>{svc.duration_minutes} min+svc.description ? ` Â· ${svc.description}` : ''}</div>
+                      <div style={{ fontSize: 11, color: muted }}>{svc.duration_minutes} min{svc.description ? (' · ' + svc.description) : ''}</div>
                     </div>
                     <div style={{ color: gold, fontSize: 16, fontFamily: 'Cormorant Garamond, serif', flexShrink: 0, marginLeft: 12 }}>${svc.price}</div>
                   </button>
