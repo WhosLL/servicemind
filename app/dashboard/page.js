@@ -95,6 +95,13 @@ export default function Dashboard() {
   const [newBlockedDate, setNewBlockedDate] = useState('')
   const [scheduleSaving, setScheduleSaving] = useState(false)
 
+  // === Call Handling state ===
+  const [callTier, setCallTier] = useState('ai_text_back')
+  const [personalPhone, setPersonalPhone] = useState('')
+  const [missedCallTextBack, setMissedCallTextBack] = useState(false)
+  const [missedCallAutoText, setMissedCallAutoText] = useState('')
+  const [callSettingsSaving, setCallSettingsSaving] = useState(false)
+
   useEffect(() => { if (salon?.id) load() }, [salon?.id])
 
   // Populate settings form when salon loads
@@ -116,6 +123,10 @@ export default function Dashboard() {
           setScheduleSettings(prev => ({ ...prev, ...parsed }))
         } catch {}
       }
+      setCallTier(salon.call_handling_tier || 'ai_text_back')
+      setPersonalPhone(salon.personal_phone || '')
+      setMissedCallTextBack(salon.missed_call_text_back || false)
+      setMissedCallAutoText(salon.missed_call_auto_text || "Hey! Sorry I missed your call. I'm with a client right now. Book your appointment here: {{booking_link}}")
       // Load SMS log
       sb().from('sms_log').select('*').eq('salon_id', salon.id).order('created_at', { ascending: false }).limit(50)
         .then(({ data }) => setSmsLog(data || []))
@@ -188,9 +199,10 @@ export default function Dashboard() {
   const enableTexting = async () => {
     setProvisioning(true)
     try {
+      const { data: { session } } = await sb().auth.getSession()
       const res = await fetch('/api/provision-number', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${session?.access_token}\` },
         body: JSON.stringify({ salon_id: salon.id })
       })
       const data = await res.json()
@@ -425,7 +437,7 @@ export default function Dashboard() {
   const today = new Date().toISOString().split('T')[0]
   const todayAppts = appointments.filter(a => a.appointment_date === today)
   const revenue = appointments.filter(a => a.status === 'completed').reduce((s, a) => s + (a.total_price || 0), 0)
-  const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : '—'
+  const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : 'â'
   const statusColor = { confirmed: 'var(--gold)', completed: 'var(--green)', cancelled: 'var(--red)', no_show: 'var(--muted)', pending: 'var(--blue)' }
 
   const referredClients = clients.filter(c => c.referred_by)
@@ -434,13 +446,13 @@ export default function Dashboard() {
   const buildNotifications = () => {
     const notifs = []
     appointments.slice(0, 15).forEach(a => {
-      notifs.push({ icon: '📅', text: `${a.client_name} booked ${a.service_name} for ${a.appointment_date}`, time: a.created_at, type: 'booking' })
+      notifs.push({ icon: 'ð', text: `${a.client_name} booked ${a.service_name} for ${a.appointment_date}`, time: a.created_at, type: 'booking' })
     })
     reviews.slice(0, 10).forEach(r => {
-      notifs.push({ icon: '⭐', text: `${r.author_name} left a ${r.stars}-star review`, time: r.created_at, type: 'review' })
+      notifs.push({ icon: 'â­', text: `${r.author_name} left a ${r.stars}-star review`, time: r.created_at, type: 'review' })
     })
     campaigns.filter(c => c.is_active).forEach(c => {
-      notifs.push({ icon: '⚡', text: `Automation "${c.name}" is running`, time: c.updated_at || c.created_at, type: 'automation' })
+      notifs.push({ icon: 'â¡', text: `Automation "${c.name}" is running`, time: c.updated_at || c.created_at, type: 'automation' })
     })
     return notifs.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 30)
   }
@@ -516,7 +528,7 @@ export default function Dashboard() {
             {salon.phone && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{salon.phone}</span>}
             <a href={`/book/${salon.slug}`} target="_blank" rel="noreferrer"
               className="cinzel" style={{ fontSize: 10, letterSpacing: '.15em', color: 'var(--gold)', border: '1px solid var(--border)', padding: '8px 16px', cursor: 'pointer', textDecoration: 'none' }}>
-              Booking Page →
+              Booking Page â
             </a>
           </div>
         </div>
@@ -545,7 +557,7 @@ export default function Dashboard() {
                       <div key={a.id} className="card" style={{ padding: '18px 22px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
                           <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{a.client_name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.service_name} · {a.appointment_time} · <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.service_name} Â· {a.appointment_time} Â· <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
                         </div>
                         <Badge text={a.status} color={statusColor[a.status] || 'var(--muted)'} />
                       </div>
@@ -564,7 +576,7 @@ export default function Dashboard() {
                   </div>
                   <div className="card" style={{ padding: '28px' }}>
                     <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Shop Details</div>
-                    {[['Type', salon.salon_type], ['City', [salon.city, salon.state].filter(Boolean).join(', ') || '—'], ['Plan', salon.subscription_tier], ['Status', salon.subscription_status]].map(([l, v]) => (
+                    {[['Type', salon.salon_type], ['City', [salon.city, salon.state].filter(Boolean).join(', ') || 'â'], ['Plan', salon.subscription_tier], ['Status', salon.subscription_status]].map(([l, v]) => (
                       <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 12 }}>
                         <span style={{ color: 'var(--muted)' }}>{l}</span>
                         <span style={{ color: 'var(--text)', textTransform: 'capitalize' }}>{v}</span>
@@ -579,13 +591,13 @@ export default function Dashboard() {
           {/* ==================== APPOINTMENTS ==================== */}
           {!loading && tab === 'appointments' && (
             <div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>{appointments.length} total · {todayAppts.length} today</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>{appointments.length} total Â· {todayAppts.length} today</div>
               {appointments.length === 0 ? <Empty main="No appointments yet" sub="Bookings through your site appear here automatically." /> :
                 appointments.map(a => (
                   <div key={a.id} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>{a.client_name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.service_name} · {a.appointment_date} at {a.appointment_time} · <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.service_name} Â· {a.appointment_date} at {a.appointment_time} Â· <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
                       {a.client_phone && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{a.client_phone}</div>}
                     </div>
                     <select style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', color: 'var(--text)', padding: '8px 12px', fontSize: 11, outline: 'none', borderRadius: 0, cursor: 'pointer', flexShrink: 0 }}
@@ -608,7 +620,7 @@ export default function Dashboard() {
                 <div>
                   <button onClick={() => { setSelectedClient(null); setClientAppointments([]) }}
                     className="btn-ghost" style={{ padding: '8px 20px', fontSize: 10, marginBottom: 28 }}>
-                    ← Back to Clients
+                    â Back to Clients
                   </button>
                   <div className="card-gold" style={{ padding: '36px', marginBottom: 24, position: 'relative' }}>
                     <div className="gold-line-top" />
@@ -624,7 +636,7 @@ export default function Dashboard() {
                     <div style={{ display: 'flex', gap: 2 }}>
                       <Stat label="Total Visits" value={selectedClient.total_visits || 0} />
                       <Stat label="Total Spent" value={`$${selectedClient.total_spent || 0}`} />
-                      <Stat label="Last Visit" value={selectedClient.last_visit_at ? new Date(selectedClient.last_visit_at).toLocaleDateString() : '—'} />
+                      <Stat label="Last Visit" value={selectedClient.last_visit_at ? new Date(selectedClient.last_visit_at).toLocaleDateString() : 'â'} />
                     </div>
                   </div>
                   <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -640,7 +652,7 @@ export default function Dashboard() {
                       <div key={a.id} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
                           <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>{a.service_name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.appointment_date} at {a.appointment_time} · <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.appointment_date} at {a.appointment_time} Â· <span style={{ color: 'var(--gold)' }}>${a.total_price}</span></div>
                         </div>
                         <Badge text={a.status} color={statusColor[a.status] || 'var(--muted)'} />
                       </div>
@@ -662,7 +674,7 @@ export default function Dashboard() {
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>{c.name || 'Unknown'}</div>
-                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{c.phone || 'No phone'} · {c.total_visits} visits · <span style={{ color: 'var(--gold)' }}>${c.total_spent}</span></div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{c.phone || 'No phone'} Â· {c.total_visits} visits Â· <span style={{ color: 'var(--gold)' }}>${c.total_spent}</span></div>
                           </div>
                           {c.last_visit_at && <div style={{ fontSize: 10, color: 'var(--muted)', textAlign: 'right', flexShrink: 0 }}>{new Date(c.last_visit_at).toLocaleDateString()}</div>}
                         </div>
@@ -678,7 +690,7 @@ export default function Dashboard() {
           {!loading && tab === 'reviews' && (
             <div>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>
-                {reviews.length} reviews · {avgRating}★ average · <span style={{ color: 'var(--gold)' }}>You can remove any review</span>
+                {reviews.length} reviews Â· {avgRating}â average Â· <span style={{ color: 'var(--gold)' }}>You can remove any review</span>
               </div>
               {reviews.length === 0 ? <Empty main="No reviews yet" sub="Reviews submitted on your booking site appear here. You control what stays visible." /> :
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 2 }}>
@@ -687,9 +699,9 @@ export default function Dashboard() {
                       <button onClick={() => deleteReview(r.id)} style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.2)', color: 'var(--red)', fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', padding: '4px 10px', cursor: 'pointer' }}>
                         Remove
                       </button>
-                      <div style={{ color: 'var(--gold)', fontSize: 12, letterSpacing: 3, marginBottom: 12 }}>{'★'.repeat(r.stars)}{'☆'.repeat(5 - r.stars)}</div>
+                      <div style={{ color: 'var(--gold)', fontSize: 12, letterSpacing: 3, marginBottom: 12 }}>{'â'.repeat(r.stars)}{'â'.repeat(5 - r.stars)}</div>
                       <div className="cormorant" style={{ fontSize: 16, fontStyle: 'italic', lineHeight: 1.7, color: 'var(--text)', marginBottom: 14 }}>&quot;{r.review_text}&quot;</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.author_name} · {r.service_received} · {new Date(r.created_at).toLocaleDateString()}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.author_name} Â· {r.service_received} Â· {new Date(r.created_at).toLocaleDateString()}</div>
                     </div>
                   ))}
                 </div>
@@ -847,11 +859,11 @@ export default function Dashboard() {
                       <div key={s.id} className="card" style={{ padding: '18px 24px', marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3 }}>{s.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{s.duration_minutes}min · <span style={{ color: 'var(--gold)' }}>${s.price}</span></div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{s.duration_minutes}min Â· <span style={{ color: 'var(--gold)' }}>${s.price}</span></div>
                         </div>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => moveService(s.id, 'up')} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}>↑</button>
-                          <button onClick={() => moveService(s.id, 'down')} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}>↓</button>
+                          <button onClick={() => moveService(s.id, 'up')} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}>â</button>
+                          <button onClick={() => moveService(s.id, 'down')} style={{ background: 'transparent', border: '1px solid var(--border-dim)', color: 'var(--muted)', padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}>â</button>
                           <button onClick={() => {
                             setEditingService(s)
                             setServiceForm({ name: s.name, category: s.category, duration_minutes: s.duration_minutes, price: s.price })
@@ -984,7 +996,7 @@ export default function Dashboard() {
                         <tr key={c.id} style={{ borderBottom: '1px solid var(--border-dim)' }}>
                           <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text)' }}>{c.name || 'Unknown'}</td>
                           <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--gold)' }}>{c.referred_by}</td>
-                          <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--muted)' }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--muted)' }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : 'â'}</td>
                           <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text)' }}>{c.total_visits || 0}</td>
                           <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--gold)' }}>${c.total_spent || 0}</td>
                         </tr>
@@ -1061,7 +1073,7 @@ export default function Dashboard() {
                       <span key={i} style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '6px 12px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                         {d}
                         <button onClick={() => setScheduleSettings(s => ({ ...s, blocked_dates: s.blocked_dates.filter((_, idx) => idx !== i) }))}
-                          style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: 12 }}>×</button>
+                          style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: 12 }}>Ã</button>
                       </span>
                     ))}
                   </div>
@@ -1078,7 +1090,7 @@ export default function Dashboard() {
           {/* ==================== NOTIFICATIONS ==================== */}
           {!loading && tab === 'notifications' && (
             <div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>Recent activity across your shop — bookings, reviews, and automations.</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32 }}>Recent activity across your shop â bookings, reviews, and automations.</div>
               {(() => {
                 const notifs = buildNotifications()
                 return notifs.length === 0 ? (
@@ -1110,7 +1122,7 @@ export default function Dashboard() {
                   Ask your <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>AI advisor</em> anything.
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 28 }}>
-                  Your AI knows your shop — its revenue, appointment patterns, client base, and ratings. Ask it for real advice.
+                  Your AI knows your shop â its revenue, appointment patterns, client base, and ratings. Ask it for real advice.
                 </p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input className="input"
@@ -1119,7 +1131,7 @@ export default function Dashboard() {
                     onKeyDown={e => e.key === 'Enter' && askAi()}
                     style={{ flex: 1 }} />
                   <button onClick={askAi} disabled={aiLoading || !aiQuery.trim()} className="btn-gold" style={{ padding: '14px 28px', opacity: aiLoading || !aiQuery.trim() ? .5 : 1 }}>
-                    {aiLoading ? '...' : 'Ask →'}
+                    {aiLoading ? '...' : 'Ask â'}
                   </button>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
@@ -1249,6 +1261,95 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Call Handling */}
+              <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Call Handling</div>
+                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 24 }}>
+                  How should we handle <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>missed calls?</em>
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24 }}>
+                  {[
+                    { id: 'ai_text_back', label: 'AI Text Back', desc: 'When someone calls and it\'s missed, AI texts them back', badge: 'Free' },
+                    { id: 'ai_forward', label: 'AI + Forward to Me', desc: 'AI texts back AND forwards to your personal number after 2 min', badge: 'Pro' },
+                    { id: 'receptionist', label: 'Receptionist', desc: 'Live receptionist answers on your behalf', badge: 'Coming Soon' },
+                  ].map(tier => (
+                    <button key={tier.id} onClick={() => tier.id !== 'receptionist' && setCallTier(tier.id)}
+                      style={{
+                        padding: '24px 16px', textAlign: 'center', cursor: tier.id === 'receptionist' ? 'not-allowed' : 'pointer',
+                        background: callTier === tier.id ? 'rgba(201,168,76,0.1)' : 'var(--dark-3)',
+                        border: `1px solid ${callTier === tier.id ? 'var(--gold)' : 'var(--border-dim)'}`,
+                        opacity: tier.id === 'receptionist' ? 0.5 : 1, transition: 'all .2s'
+                      }}>
+                      <div style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: callTier === tier.id ? 'var(--gold)' : 'var(--muted)', marginBottom: 8 }}>{tier.badge}</div>
+                      <div style={{ fontSize: 13, color: callTier === tier.id ? 'var(--gold)' : 'var(--text)', marginBottom: 6, fontWeight: 500 }}>{tier.label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>{tier.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                {callTier === 'ai_forward' && (
+                  <div style={{ marginBottom: 16 }}>
+                    <FieldLabel>Your Personal Cell Number</FieldLabel>
+                    <input className="input" placeholder="(555) 000-0000" value={personalPhone}
+                      onChange={e => setPersonalPhone(e.target.value)} />
+                  </div>
+                )}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
+                    <input type="checkbox" checked={missedCallTextBack}
+                      onChange={e => setMissedCallTextBack(e.target.checked)} />
+                    Text clients back automatically when they call and I don't answer
+                  </label>
+                </div>
+                {missedCallTextBack && (
+                  <div style={{ marginBottom: 16 }}>
+                    <FieldLabel>Auto-Reply Message</FieldLabel>
+                    <textarea className="input" rows={3} value={missedCallAutoText}
+                      onChange={e => setMissedCallAutoText(e.target.value)}
+                      style={{ resize: 'vertical' }} />
+                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>Use {'{{booking_link}}'} for your booking page link, {'{{shop_name}}'} for your shop name.</div>
+                  </div>
+                )}
+                {salon.twilio_phone_number && (
+                  <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '14px 18px', marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Your Business Number</div>
+                    <div style={{ fontSize: 16, color: 'var(--gold)' }}>{salon.twilio_phone_number}</div>
+                  </div>
+                )}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Call Forwarding Instructions</div>
+                  {[
+                    ['iPhone', 'Settings \u2192 Phone \u2192 Call Forwarding \u2192 Toggle On \u2192 Enter business number'],
+                    ['Android', 'Phone App \u2192 Menu \u2192 Settings \u2192 Call Forwarding \u2192 Always Forward'],
+                    ['AT&T', 'Dial *21* then your business number then #'],
+                    ['T-Mobile', 'Dial **21* then your business number then #'],
+                    ['Verizon', 'Dial *72 then your business number'],
+                  ].map(([device, steps]) => (
+                    <div key={device} style={{ padding: '8px 14px', background: 'var(--dark-3)', border: '1px solid var(--border-dim)', marginBottom: 1, display: 'flex', gap: 12, fontSize: 11 }}>
+                      <span style={{ color: 'var(--text)', fontWeight: 500, minWidth: 70 }}>{device}</span>
+                      <span style={{ color: 'var(--muted)' }}>{steps}</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={async () => {
+                  setCallSettingsSaving(true)
+                  try {
+                    await sb().from('salons').update({
+                      call_handling_tier: callTier,
+                      personal_phone: personalPhone,
+                      missed_call_text_back: missedCallTextBack,
+                      missed_call_auto_text: missedCallAutoText
+                    }).eq('id', salon.id)
+                    setSalon(s => ({ ...s, call_handling_tier: callTier, personal_phone: personalPhone, missed_call_text_back: missedCallTextBack, missed_call_auto_text: missedCallAutoText }))
+                    alert('Call settings saved!')
+                  } catch { alert('Error saving.') }
+                  setCallSettingsSaving(false)
+                }} disabled={callSettingsSaving}
+                  className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: callSettingsSaving ? .5 : 1 }}>
+                  {callSettingsSaving ? 'Saving...' : 'Save Call Settings'}
+                </button>
+              </div>
+
               {/* SMS Setup */}
               <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
                 <div className="gold-line-top" />
@@ -1330,7 +1431,7 @@ export default function Dashboard() {
                   ['Birthday', 'Special offer goes out on the client\'s birthday'],
                 ].map(([title, desc], i) => (
                   <div key={i} style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'flex-start' }}>
-                    <span style={{ color: 'var(--gold)', fontSize: 10, marginTop: 4, flexShrink: 0 }}>✦</span>
+                    <span style={{ color: 'var(--gold)', fontSize: 10, marginTop: 4, flexShrink: 0 }}>â¦</span>
                     <div>
                       <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 2 }}>{title}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)' }}>{desc}</div>
