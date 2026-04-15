@@ -4,46 +4,39 @@ import { useRouter } from 'next/navigation'
 import { sb } from '../../lib/supabase'
 import '../globals.css'
 
-const CAMPAIGNS = (id) => [
-  { salon_id: id, campaign_type: 'missed_call', name: 'Missed Call Text Back', is_active: true, message_template: "Hey! You just missed us at {{shop_name}}. Ready to book? Reply here or tap: {{booking_link}}" },
-  { salon_id: id, campaign_type: 'reminder_24h', name: 'Appointment Reminder (24hr)', is_active: true, message_template: "Reminder: You have an appointment at {{shop_name}} tomorrow at {{time}}. Reply CANCEL to reschedule." },
-  { salon_id: id, campaign_type: 'reminder_1h', name: 'Appointment Reminder (1hr)', is_active: true, message_template: "See you soon! Your appointment at {{shop_name}} starts in 1 hour at {{time}}." },
-  { salon_id: id, campaign_type: 'review_request', name: 'Post-Appointment Review', is_active: true, message_template: "Thanks for coming in! Mind leaving us a quick review? {{review_link}}" },
-  { salon_id: id, campaign_type: 'win_back', name: 'Win-Back (45 Days)', is_active: true, message_template: "We miss you! Come back this week and save 10%: {{booking_link}}" },
-  { salon_id: id, campaign_type: 'birthday', name: 'Birthday Special', is_active: true, message_template: "Happy Birthday! $5 off your next visit this month: {{booking_link}}" },
-  { salon_id: id, campaign_type: 'slow_day', name: 'Slow Day Blast', is_active: false, message_template: "Spots just opened today at {{shop_name}}! Book now: {{booking_link}}" },
-  { salon_id: id, campaign_type: 'no_show', name: 'No-Show Follow-up', is_active: true, message_template: "You missed your appointment — no worries! Rebook anytime: {{booking_link}}" },
+const TYPES = ['barbershop', 'nail', 'lash', 'hair', 'spa', 'tattoo', 'other']
+
+const VIBES = [
+  { label: 'Clean & Minimal', value: 'clean and modern minimalist', icon: 'â»' },
+  { label: 'Bold & Urban', value: 'bold urban street style', icon: 'â' },
+  { label: 'Luxury', value: 'luxury high-end premium', icon: 'â¦' },
+  { label: 'Classic Barbershop', value: 'classic traditional barbershop', icon: 'â' },
 ]
 
-const OPENS = ['6:00 AM', '7:00 AM', '7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '10:00 AM']
-const CLOSES = ['3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM', '10:00 PM']
-const TYPES = ['barbershop', 'nail', 'lash', 'hair', 'spa', 'tattoo', 'other']
-const DAYS = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' }
-
-function Progress({ step, onBack }) {
+function Progress({ step, total, onBack }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 44 }}>
-      <button onClick={onBack} className="btn-ghost" style={{ fontSize: 10, padding: '9px 18px' }}>← Back</button>
+      <button onClick={onBack} className="btn-ghost" style={{ fontSize: 10, padding: '9px 18px' }}>â Back</button>
       <div style={{ display: 'flex', gap: 5, flex: 1 }}>
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} style={{ height: 2, flex: i <= step ? 1 : '.4', background: i <= step ? 'var(--gold)' : 'var(--border-dim)', transition: 'all .3s' }} />
+        {Array.from({ length: total }, (_, i) => (
+          <div key={i} style={{ height: 2, flex: i < step ? 1 : '.4', background: i < step ? 'var(--gold)' : 'var(--border-dim)', transition: 'all .3s' }} />
         ))}
       </div>
       <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.2em', textTransform: 'uppercase', flexShrink: 0 }}>
-        {Math.min(step, 4)} / 4
+        {step} / {total}
       </span>
     </div>
   )
 }
 
-function Wrap({ step, onBack, title, italic, sub, children, onNext, nextLabel = 'Continue →', canNext = true, loading, err }) {
+function Wrap({ step, total, onBack, title, italic, sub, children, onNext, nextLabel = 'Continue â', canNext = true, loading, err }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--black)' }}>
-      <div style={{ width: '100%', maxWidth: 680 }}>
-        <Progress step={step} onBack={onBack} />
+      <div style={{ width: '100%', maxWidth: 720 }}>
+        <Progress step={step} total={total} onBack={onBack} />
         <div className="card-gold" style={{ padding: '48px 48px' }}>
           <div className="gold-line-top" />
-          <div className="eyebrow" style={{ marginBottom: 20 }}>Setup — Step {Math.min(step, 4)} of 4</div>
+          <div className="eyebrow" style={{ marginBottom: 20 }}>Setup â Step {step} of {total}</div>
           <h2 className="cormorant" style={{ fontSize: 44, fontWeight: 300, lineHeight: 1.1, marginBottom: 8 }}>
             {title} <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>{italic}</em>
           </h2>
@@ -53,7 +46,7 @@ function Wrap({ step, onBack, title, italic, sub, children, onNext, nextLabel = 
           <div style={{ marginTop: 36, display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={onNext} disabled={!canNext || loading} className="btn-gold"
               style={{ padding: '16px 40px', opacity: canNext && !loading ? 1 : .45 }}>
-              {loading ? 'Launching...' : nextLabel}
+              {loading ? 'Working...' : nextLabel}
             </button>
           </div>
         </div>
@@ -62,208 +55,284 @@ function Wrap({ step, onBack, title, italic, sub, children, onNext, nextLabel = 
   )
 }
 
+const FL = ({ children }) => (
+  <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>{children}</label>
+)
+
 export default function Onboard() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
-  const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', password: '', instagram: '', city: '', state: '', address: '', salon_type: 'barbershop' })
-  const [svcs, setSvcs] = useState([{ name: '', items: [{ name: '', price: '', duration: '30' }] }])
-  const [hours, setHours] = useState({ mon: { open: '8:00 AM', close: '6:00 PM' }, tue: { open: '8:00 AM', close: '6:00 PM' }, wed: { open: '8:00 AM', close: '6:00 PM' }, thu: { open: '8:00 AM', close: '6:00 PM' }, fri: null, sat: null, sun: null })
-  const [createdSlug, setCreatedSlug] = useState('')
+  const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', password: '', city: '', state: '', address: '', salon_type: 'barbershop' })
+  const [coreSvcs, setCoreSvcs] = useState([{ name: '', price: '', duration: '30' }])
+  const [addons, setAddons] = useState([{ name: '', price: '', duration: '0' }])
+  const [vibe, setVibe] = useState('')
+  const [siteContent, setSiteContent] = useState(null)
+  const [generatingSite, setGeneratingSite] = useState(false)
+  const [createdSalon, setCreatedSalon] = useState(null)
 
   const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   const goBack = () => step === 1 ? router.push('/') : (setStep(s => s - 1), setErr(''))
   const set = (key, val) => setInfo(prev => ({ ...prev, [key]: val }))
 
-  const submit = async () => {
-    setLoading(true); setErr('')
+  const updateSvc = (list, setList, idx, key, val) => {
+    const u = [...list]; u[idx] = { ...u[idx], [key]: val }; setList(u)
+  }
+  const addSvc = (list, setList) => setList([...list, { name: '', price: '', duration: '30' }])
+  const removeSvc = (list, setList, idx) => list.length > 1 ? setList(list.filter((_, i) => i !== idx)) : null
+
+  // Step 3: Generate site content
+  const generateSite = async () => {
+    setGeneratingSite(true); setErr('')
     try {
+      // First create the user + salon
       const slug = slugify(info.shop_name) + '-' + Math.random().toString(36).slice(2, 6)
+      const svcRows = [
+        ...coreSvcs.filter(s => s.name.trim()).map((s, i) => ({ name: s.name.trim(), price: parseFloat(s.price) || 0, duration_minutes: parseInt(s.duration) || 30, category: 'core', is_addon: false, sort_order: i })),
+        ...addons.filter(s => s.name.trim()).map((s, i) => ({ name: s.name.trim(), price: parseFloat(s.price) || 0, duration_minutes: parseInt(s.duration) || 0, category: 'addon', is_addon: true, sort_order: 100 + i }))
+      ]
 
-      // Build service rows
-      const svcRows = []
-      for (const cat of svcs) {
-        for (const item of cat.items) {
-          if (item.name.trim()) {
-            svcRows.push({ name: item.name.trim(), price: parseFloat(item.price) || 0, duration_minutes: parseInt(item.duration) || 30, category: cat.name.trim() || 'General', is_active: true })
-          }
-        }
-      }
-
-      // Call signup API (creates auth user + salon + services + campaigns)
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: info.email,
-          password: info.password,
+          email: info.email, password: info.password,
           salonData: {
-            shop_name: info.shop_name,
-            owner_name: info.owner_name,
-            phone: info.phone,
-            email: info.email,
-            instagram: info.instagram,
-            city: info.city,
-            state: info.state,
-            address: info.address,
-            salon_type: info.salon_type,
-            hours,
-            slug,
-            subscription_status: 'trial',
-            subscription_tier: 'basic',
-            monthly_rate: 150,
-            onboarded: true,
-            onboarded_at: new Date().toISOString(),
-            _services: svcRows,
+            shop_name: info.shop_name, owner_name: info.owner_name, phone: info.phone,
+            email: info.email, city: info.city, state: info.state, address: info.address,
+            salon_type: info.salon_type, slug, vibe,
+            subscription_status: 'trial', subscription_tier: 'basic', monthly_rate: 150,
+            onboarded: false, _services: svcRows,
           }
         })
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Signup failed')
 
-      // Sign in the user client-side
+      // Sign in
       await sb().auth.signInWithPassword({ email: info.email, password: info.password })
+      setCreatedSalon(result.salon)
 
-      setCreatedSlug(result.salon?.slug || slug)
-      setStep(5)
-      setTimeout(() => router.push('/dashboard'), 2500)
-    } catch (e) { setErr(e.message || 'Setup failed. Please try again.'); setLoading(false) }
+      // Generate site content
+      const { data: { session } } = await sb().auth.getSession()
+      const genRes = await fetch('/api/generate-site', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({
+          salon_id: result.salon?.id, vibe,
+          shop_name: info.shop_name, salon_type: info.salon_type,
+          city: info.city, state: info.state, owner_name: info.owner_name
+        })
+      })
+      const genData = await genRes.json()
+      setSiteContent(genData.site_content || null)
+      setStep(4)
+    } catch (e) { setErr(e.message || 'Setup failed.') }
+    setGeneratingSite(false)
   }
 
-  const wp = { step, onBack: goBack, loading, err }
+  // Step 4: Finalize
+  const finalize = async () => {
+    setLoading(true); setErr('')
+    try {
+      if (createdSalon?.id) {
+        await sb().from('salons').update({ onboarded: true, onboarded_at: new Date().toISOString() }).eq('id', createdSalon.id)
+      }
+      setStep(5)
+      setTimeout(() => router.push('/dashboard'), 2500)
+    } catch (e) { setErr(e.message) }
+    setLoading(false)
+  }
 
+  const wp = (s) => ({ step: s, total: 4, onBack: goBack, loading, err })
+
+  // ========== STEP 1: Shop Info ==========
   if (step === 1) return (
-    <Wrap {...wp} title="Your Shop" italic="Info." sub="This powers your website, booking page, and AI automatically."
+    <Wrap {...wp(1)} title="Your Shop" italic="Info." sub="This powers your website, booking page, and AI automatically."
       onNext={() => {
         if (!info.shop_name || !info.owner_name || !info.phone) { setErr('Shop name, owner name, and phone are required.'); return }
-        if (!info.email) { setErr('Email is required for your account.'); return }
-        if (!info.password || info.password.length < 6) { setErr('Create a password of at least 6 characters.'); return }
+        if (!info.email) { setErr('Email is required.'); return }
+        if (!info.password || info.password.length < 6) { setErr('Password must be at least 6 characters.'); return }
         setErr(''); setStep(2)
       }}
       canNext={!!info.shop_name}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {[['Shop Name *', 'shop_name', 'e.g. Boo Cutz'], ['Owner Name *', 'owner_name', 'e.g. Brandon McCoy'], ['Phone *', 'phone', '(404) 000-0000'], ['Email *', 'email', 'you@shop.com']].map(([label, key, ph]) => (
           <div key={key}>
-            <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>{label}</label>
+            <FL>{label}</FL>
             <input className="input" placeholder={ph} value={info[key]} onChange={e => set(key, e.target.value)} type={key === 'email' ? 'email' : 'text'} autoComplete={key === 'email' ? 'email' : 'off'} />
           </div>
         ))}
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Create a Password *</label>
+          <FL>Create a Password *</FL>
           <input className="input" type="password" placeholder="Minimum 6 characters" value={info.password} onChange={e => set('password', e.target.value)} autoComplete="new-password" />
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>You'll use this email & password to log into your dashboard.</div>
         </div>
         <div>
-          <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Instagram</label>
-          <input className="input" placeholder="@yourshop" value={info.instagram} onChange={e => set('instagram', e.target.value)} />
-        </div>
-        <div>
-          <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Salon Type</label>
+          <FL>Salon Type</FL>
           <select className="input" value={info.salon_type} onChange={e => set('salon_type', e.target.value)}>
             {TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
           </select>
         </div>
+        <div>
+          <FL>Address (optional)</FL>
+          <input className="input" placeholder="123 Main Street" value={info.address} onChange={e => set('address', e.target.value)} />
+        </div>
         {[['City', 'city', 'Raleigh'], ['State', 'state', 'NC']].map(([label, key, ph]) => (
           <div key={key}>
-            <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>{label}</label>
+            <FL>{label}</FL>
             <input className="input" placeholder={ph} value={info[key]} onChange={e => set(key, e.target.value)} />
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 12 }}>
-        <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Address (optional)</label>
-        <input className="input" placeholder="123 Main Street" value={info.address} onChange={e => set('address', e.target.value)} />
-      </div>
     </Wrap>
   )
 
-  const addCategory = () => setSvcs(prev => [...prev, { name: '', items: [{ name: '', price: '', duration: '30' }] }])
-  const removeCategory = (ci) => setSvcs(prev => prev.filter((_, i) => i !== ci))
-  const updateCategory = (ci, val) => setSvcs(prev => { const u = [...prev]; u[ci] = { ...u[ci], name: val }; return u })
-  const addItem = (ci) => setSvcs(prev => { const u = [...prev]; u[ci] = { ...u[ci], items: [...u[ci].items, { name: '', price: '', duration: '30' }] }; return u })
-  const removeItem = (ci, ii) => setSvcs(prev => { const u = [...prev]; u[ci] = { ...u[ci], items: u[ci].items.filter((_, i) => i !== ii) }; return u })
-  const updateItem = (ci, ii, key, val) => setSvcs(prev => { const u = [...prev]; const items = [...u[ci].items]; items[ii] = { ...items[ii], [key]: val }; u[ci] = { ...u[ci], items }; return u })
+  // ========== STEP 2: Services ==========
+  const SvcRow = ({ list, setList, idx, item }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, alignItems: 'center' }}>
+      <input className="input" placeholder="Service name" value={item.name} onChange={e => updateSvc(list, setList, idx, 'name', e.target.value)} style={{ padding: '10px 12px', fontSize: 12 }} />
+      <div style={{ position: 'relative' }}>
+        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--gold)', fontSize: 11, pointerEvents: 'none' }}>$</span>
+        <input className="input" type="number" placeholder="0" value={item.price} onChange={e => updateSvc(list, setList, idx, 'price', e.target.value)} style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
+      </div>
+      <input className="input" type="number" placeholder="30" value={item.duration} onChange={e => updateSvc(list, setList, idx, 'duration', e.target.value)} style={{ padding: '10px 8px', fontSize: 12, textAlign: 'center' }} />
+      <button onClick={() => removeSvc(list, setList, idx)} disabled={list.length === 1} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: list.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, opacity: list.length === 1 ? 0.2 : 0.5, padding: 0 }}>Ã</button>
+    </div>
+  )
+
+  const SvcHeader = () => (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, padding: '0 2px 6px' }}>
+      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Service</span>
+      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Price</span>
+      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Mins</span>
+      <span />
+    </div>
+  )
 
   if (step === 2) return (
-    <Wrap {...wp} title="Your" italic="Services." sub="Group your services by category. Works for any salon type."
+    <Wrap {...wp(2)} title="Your" italic="Services." sub="Add your core services and optional add-ons."
       onNext={() => {
-        const hasService = svcs.some(cat => cat.items.some(s => s.name.trim()))
-        if (!hasService) { setErr('Add at least one service.'); return }
+        if (!coreSvcs.some(s => s.name.trim())) { setErr('Add at least one core service.'); return }
         setErr(''); setStep(3)
       }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {svcs.map((cat, ci) => (
-          <div key={ci} style={{ border: '1px solid var(--border-dim)', background: 'var(--dark-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(201,168,76,0.04)' }}>
-              <input className="input" placeholder="Category name (e.g. Haircuts, Nails, Add-Ons)" value={cat.name} onChange={e => updateCategory(ci, e.target.value)} style={{ padding: '8px 12px', fontSize: 12, fontWeight: 500, flex: 1, letterSpacing: '.05em' }} />
-              <button onClick={() => removeCategory(ci)} disabled={svcs.length === 1} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: svcs.length === 1 ? 'not-allowed' : 'pointer', fontSize: 18, padding: '0 4px', opacity: svcs.length === 1 ? 0.3 : 0.6, flexShrink: 0 }}>×</button>
-            </div>
-            <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, padding: '0 2px 4px' }}>
-                <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Service</span>
-                <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Price</span>
-                <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Mins</span>
-                <span />
-              </div>
-              {cat.items.map((svc, ii) => (
-                <div key={ii} style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, alignItems: 'center' }}>
-                  <input className="input" placeholder="Service name" value={svc.name} onChange={e => updateItem(ci, ii, 'name', e.target.value)} style={{ padding: '10px 12px', fontSize: 12 }} />
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--gold)', fontSize: 11, pointerEvents: 'none' }}>$</span>
-                    <input className="input" type="number" placeholder="0" value={svc.price} onChange={e => updateItem(ci, ii, 'price', e.target.value)} style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
-                  </div>
-                  <input className="input" type="number" placeholder="30" value={svc.duration} onChange={e => updateItem(ci, ii, 'duration', e.target.value)} style={{ padding: '10px 8px', fontSize: 12, textAlign: 'center' }} />
-                  <button onClick={() => removeItem(ci, ii)} disabled={cat.items.length === 1} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: cat.items.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, opacity: cat.items.length === 1 ? 0.2 : 0.5, padding: 0 }}>×</button>
-                </div>
-              ))}
-              <button onClick={() => addItem(ci)} style={{ background: 'none', border: '1px dashed var(--border-dim)', color: 'var(--muted)', padding: '8px', fontSize: 11, cursor: 'pointer', letterSpacing: '.15em', textTransform: 'uppercase', marginTop: 2 }}>+ Add Service</button>
-            </div>
-          </div>
-        ))}
-        <button onClick={addCategory} className="btn-ghost" style={{ width: '100%', padding: '13px', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase' }}>+ Add Category</button>
+      {/* Core Services */}
+      <div style={{ border: '1px solid var(--border-dim)', background: 'var(--dark-3)', marginBottom: 20 }}>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(201,168,76,0.06)' }}>
+          <div style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 500 }}>Core Services</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Your main offerings â fades, haircuts, nails, etc.</div>
+        </div>
+        <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <SvcHeader />
+          {coreSvcs.map((s, i) => <SvcRow key={i} list={coreSvcs} setList={setCoreSvcs} idx={i} item={s} />)}
+          <button onClick={() => addSvc(coreSvcs, setCoreSvcs)} style={{ background: 'none', border: '1px dashed var(--border-dim)', color: 'var(--muted)', padding: '8px', fontSize: 11, cursor: 'pointer', letterSpacing: '.15em', textTransform: 'uppercase', marginTop: 2 }}>+ Add Service</button>
+        </div>
+      </div>
+
+      {/* Add-ons */}
+      <div style={{ border: '1px solid var(--border-dim)', background: 'var(--dark-3)' }}>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(201,168,76,0.03)' }}>
+          <div style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 500 }}>Add-Ons (optional)</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Extras clients can add â beard trim, hot towel, designs, etc.</div>
+        </div>
+        <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <SvcHeader />
+          {addons.map((s, i) => <SvcRow key={i} list={addons} setList={setAddons} idx={i} item={s} />)}
+          <button onClick={() => addSvc(addons, setAddons)} style={{ background: 'none', border: '1px dashed var(--border-dim)', color: 'var(--muted)', padding: '8px', fontSize: 11, cursor: 'pointer', letterSpacing: '.15em', textTransform: 'uppercase', marginTop: 2 }}>+ Add Add-On</button>
+        </div>
       </div>
     </Wrap>
   )
 
+  // ========== STEP 3: Design Your Site ==========
   if (step === 3) return (
-    <Wrap {...wp} title="Your" italic="Hours." sub="Set your available hours for bookings."
-      onNext={() => { setErr(''); submit() }}
-      nextLabel="Launch My Platform →">
-      <div>
-        <div style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 14 }}>Operating Hours</div>
-        {Object.entries(DAYS).map(([day, label]) => (
-          <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', background: 'var(--dark-3)', border: '1px solid var(--border-dim)', marginBottom: 2 }}>
-            <input type="checkbox" checked={!!hours[day]} onChange={e => setHours(prev => ({ ...prev, [day]: e.target.checked ? { open: '8:00 AM', close: '6:00 PM' } : null }))} />
-            <span style={{ fontSize: 12, width: 90, color: hours[day] ? 'var(--text)' : 'var(--muted)', flexShrink: 0 }}>{label}</span>
-            {hours[day] ? (
-              <>
-                <select style={{ background: 'var(--dark-2)', border: '1px solid var(--border-dim)', color: 'var(--text)', padding: '7px 10px', fontSize: 11, outline: 'none', borderRadius: 0, flex: 1 }}
-                  value={hours[day].open} onChange={e => setHours(prev => ({ ...prev, [day]: { ...prev[day], open: e.target.value } }))}>
-                  {OPENS.map(t => <option key={t}>{t}</option>)}
-                </select>
-                <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>to</span>
-                <select style={{ background: 'var(--dark-2)', border: '1px solid var(--border-dim)', color: 'var(--text)', padding: '7px 10px', fontSize: 11, outline: 'none', borderRadius: 0, flex: 1 }}
-                  value={hours[day].close} onChange={e => setHours(prev => ({ ...prev, [day]: { ...prev[day], close: e.target.value } }))}>
-                  {CLOSES.map(t => <option key={t}>{t}</option>)}
-                </select>
-              </>
-            ) : <span style={{ fontSize: 11, color: 'var(--muted)' }}>Closed</span>}
-          </div>
-        ))}
+    <Wrap {...wp(3)} title="Design Your" italic="Site." sub="We'll use AI to generate your booking page copy based on your shop's vibe."
+      onNext={generateSite} loading={generatingSite}
+      nextLabel={generatingSite ? 'Generating...' : 'Generate & Continue â'}
+      canNext={!!vibe.trim()}>
+      <div style={{ marginBottom: 24 }}>
+        <FL>Describe your shop's vibe</FL>
+        <input className="input" placeholder="e.g. clean and modern, bold urban barbershop, luxury high-end" value={vibe} onChange={e => setVibe(e.target.value)} style={{ marginBottom: 16 }} />
+        <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>Or pick a style:</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+          {VIBES.map(v => (
+            <button key={v.label} onClick={() => setVibe(v.value)}
+              style={{
+                padding: '20px 16px', background: vibe === v.value ? 'rgba(201,168,76,0.1)' : 'var(--dark-3)',
+                border: `1px solid ${vibe === v.value ? 'var(--gold)' : 'var(--border-dim)'}`,
+                color: vibe === v.value ? 'var(--gold)' : 'var(--text)', cursor: 'pointer',
+                textAlign: 'center', transition: 'all .2s'
+              }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>{v.icon}</div>
+              <div style={{ fontSize: 12, letterSpacing: '.1em' }}>{v.label}</div>
+            </button>
+          ))}
+        </div>
       </div>
     </Wrap>
   )
 
+  // ========== STEP 4: Business Line ==========
+  if (step === 4) return (
+    <Wrap {...wp(4)} title="Your Business" italic="Line." sub="Your AI receptionist is ready. Here's how clients will reach you."
+      onNext={finalize} nextLabel="Launch My Platform â" loading={loading}>
+      {createdSalon?.twilio_phone_number ? (
+        <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border)', padding: '24px', marginBottom: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Your Business Number</div>
+          <div style={{ fontSize: 28, color: 'var(--gold)', fontWeight: 500, letterSpacing: '.05em' }}>{createdSalon.twilio_phone_number}</div>
+        </div>
+      ) : (
+        <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '20px', marginBottom: 24, fontSize: 13, color: 'var(--muted)', lineHeight: 1.8 }}>
+          Your business number will be set up in your dashboard under Settings. You can enable texting there.
+        </div>
+      )}
+
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>Set Up Call Forwarding</div>
+        <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 16 }}>
+          Forward your personal calls to your new business number so the AI can answer when you're busy.
+        </div>
+        {[
+          ['iPhone', 'Settings â Phone â Call Forwarding â Toggle On â Enter your business number'],
+          ['Android', 'Phone App â â® Menu â Settings â Supplementary Services â Call Forwarding â Always Forward â Enter number'],
+          ['AT&T', 'Dial *21* then your business number then # â Press Call'],
+          ['T-Mobile', 'Dial **21* then your business number then # â Press Call'],
+          ['Verizon', 'Dial *72 then your business number â Press Call â Wait for confirmation tone'],
+        ].map(([device, steps]) => (
+          <div key={device} style={{ padding: '12px 16px', background: 'var(--dark-3)', border: '1px solid var(--border-dim)', marginBottom: 2 }}>
+            <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500, marginBottom: 4 }}>{device}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.6 }}>{steps}</div>
+          </div>
+        ))}
+      </div>
+
+      {siteContent && (
+        <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '20px', marginBottom: 20 }}>
+          <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>AI-Generated Site Preview</div>
+          <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 6, fontFamily: 'Cormorant Garamond, serif' }}>{siteContent.tagline}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>{siteContent.hero_description}</div>
+        </div>
+      )}
+    </Wrap>
+  )
+
+  // ========== STEP 5: Done ==========
   if (step === 5) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--black)', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 520 }}>
-        <div style={{ fontSize: 56, marginBottom: 28, color: 'var(--gold)' }}>✦</div>
+        <div style={{ fontSize: 56, marginBottom: 28, color: 'var(--gold)' }}>â¦</div>
         <div className="cinzel" style={{ fontSize: 12, color: 'var(--gold)', letterSpacing: '.35em', marginBottom: 20 }}>Platform Live</div>
         <h2 className="cormorant" style={{ fontSize: 60, fontWeight: 300, marginBottom: 20, lineHeight: 1.05 }}>
           {info.shop_name}<br />is <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>ready.</em>
         </h2>
-        <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9 }}>Your booking page is live. Opening your dashboard now...</p>
+        {createdSalon?.slug && (
+          <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border)', padding: '16px 24px', marginBottom: 20, display: 'inline-block' }}>
+            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 6 }}>Your Booking Page</div>
+            <div style={{ fontSize: 14, color: 'var(--gold)', fontFamily: 'monospace' }}>servicemind.vercel.app/book/{createdSalon.slug}</div>
+          </div>
+        )}
+        <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9 }}>Opening your dashboard now...</p>
       </div>
     </div>
   )
