@@ -1,19 +1,25 @@
 import { createClient } from '@supabase/supabase-js'
 
-const sb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+let _sb
+function getSb() {
+  if (!_sb) {
+    _sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+  }
+  return _sb
+}
 
 export async function POST(req) {
   try {
+    const sb = getSb()
     const { salon_id, to, message, trigger_type, campaign_id } = await req.json()
 
     if (!salon_id || !to || !message) {
       return Response.json({ error: 'Missing required fields: salon_id, to, message' }, { status: 400 })
     }
 
-    // Master Twilio credentials (YOUR account, not the barber's)
     const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID
     const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN
 
@@ -21,7 +27,6 @@ export async function POST(req) {
       return Response.json({ error: 'SMS not configured. Contact ServiceMind support.' }, { status: 500 })
     }
 
-    // Get the salon's assigned phone number
     const { data: salon } = await sb
       .from('salons')
       .select('twilio_phone_number, shop_name')
@@ -36,7 +41,6 @@ export async function POST(req) {
       return Response.json({ error: 'No phone number assigned. Enable texting in Settings.' }, { status: 400 })
     }
 
-    // Clean the phone number - ensure E.164 format
     let cleanPhone = to.replace(/[^0-9+]/g, '')
     if (!cleanPhone.startsWith('+')) {
       if (cleanPhone.startsWith('1') && cleanPhone.length === 11) {
@@ -48,7 +52,6 @@ export async function POST(req) {
       }
     }
 
-    // Call Twilio API using MASTER credentials
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`
     const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')
 
@@ -87,3 +90,4 @@ export async function POST(req) {
     return Response.json({ error: err.message || 'Internal server error' }, { status: 500 })
   }
 }
+
