@@ -11,6 +11,21 @@ function getAdmin() {
   return _supabaseAdmin
 }
 
+// Rate limiting: 20 requests per salon per hour
+const rateMap = new Map()
+function checkRate(salonId) {
+  const now = Date.now()
+  const key = `advisor_${salonId}`
+  const window = 3600000 // 1 hour
+  const limit = 20
+  if (!rateMap.has(key)) rateMap.set(key, [])
+  const hits = rateMap.get(key).filter(t => now - t < window)
+  if (hits.length >= limit) return false
+  hits.push(now)
+  rateMap.set(key, hits)
+  return true
+}
+
 export async function POST(req) {
   try {
     const supabaseAdmin = getAdmin()
@@ -38,6 +53,10 @@ export async function POST(req) {
 
     if (!salon) {
       return Response.json({ error: 'Salon not found' }, { status: 404 })
+    }
+
+    if (!checkRate(salon_id)) {
+      return Response.json({ error: 'Rate limit exceeded. Try again later.' }, { status: 429 })
     }
 
     const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
