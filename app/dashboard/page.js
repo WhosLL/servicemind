@@ -202,7 +202,7 @@ export default function Dashboard() {
       const { data: { session } } = await sb().auth.getSession()
       const res = await fetch('/api/provision-number', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${session?.access_token}\` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
         body: JSON.stringify({ salon_id: salon.id })
       })
       const data = await res.json()
