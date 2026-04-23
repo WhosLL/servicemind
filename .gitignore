@@ -1,6 +1,10 @@
 node_modules/
 .next/
-.env
-.env.local
+.vercel
 *.log
-node_modules/
+
+# Environment variables — NEVER commit. Real values live in Vercel for prod,
+# and in .env.local for local dev (pull via `vercel env pull`).
+.env
+.env.*
+!.env.example
