@@ -1,15 +1,20 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'ServiceMind — AI Operating System for Salons',
-  description: 'The AI-powered platform that runs your salon. Booking, automations, reviews, and client management — all in one place.',
-  metadataBase: new URL('https://servicemind.io'),
+  title: 'ServiceMind — The AI Booking Platform Built for Barbers',
+  description: 'Your own branded booking page, SMS confirmations, AI that fills slow days — all for $79/mo. First month free, no card required.',
+  metadataBase: new URL('https://servicemind.vercel.app'),
   openGraph: {
-    title: 'ServiceMind — AI Operating System for Salons',
-    description: 'Website, booking, AI automation, and client management for barbershops and salons.',
-    url: 'https://servicemind.io',
+    title: 'ServiceMind — The AI Booking Platform Built for Barbers',
+    description: 'Your own branded booking page, SMS confirmations, AI that fills slow days. $79/mo. First month free, no card.',
+    url: 'https://servicemind.vercel.app',
     siteName: 'ServiceMind',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'ServiceMind — The AI Booking Platform Built for Barbers',
+    description: 'Your own branded booking page, SMS confirmations, AI that fills slow days. $79/mo. First month free, no card.',
   }
 }
 

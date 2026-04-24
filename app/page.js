@@ -33,48 +33,48 @@ function Home({ onStart, onLogin }) {
   }
 
   const features = [
-    { icon: '⚡', tag: 'Instant', title: 'Live in Minutes', body: 'Fill out one form. Your branded booking site, calendar, and automations go live automatically. No tech skills needed.' },
-    { icon: '🤖', tag: 'AI-Powered', title: 'AI Booking Agent', body: 'Miss a call? Your AI texts back instantly, qualifies the lead, and books the appointment while you focus on the client in your chair.' },
-    { icon: '📅', tag: 'Automated', title: 'Zero No-Shows', body: 'Smart 24hr and 1hr reminders sent automatically. Clients confirm or reschedule with a tap. No-show rate drops immediately.' },
-    { icon: '💰', tag: 'Revenue', title: 'Win-Back Engine', body: 'When a client hasn\'t visited in 45 days, your AI sends a personalized promo text. Most shops recover 2–3 clients per week on autopilot.' },
-    { icon: '⭐', tag: 'Reputation', title: 'Review Control', body: 'Auto-request reviews after every appointment. Read and remove any review you don\'t want. Build your reputation on your terms.' },
-    { icon: '📊', tag: 'Insights', title: 'Business Advisor', body: 'Your AI analyzes appointments, revenue, and trends then tells you exactly what to do to grow — like having a business coach on call 24/7.' },
+    { icon: '⚡', tag: 'Instant', title: 'Live in Minutes', body: 'Fill out one form. Your branded booking page, calendar, and SMS confirmations go live automatically. No tech skills, no setup fee.' },
+    { icon: '🤖', tag: 'AI-Powered', title: 'AI Booking Agent', body: 'Miss a call? Your AI texts back instantly, qualifies the client, and books the cut while you stay focused on the chair in front of you.' },
+    { icon: '📅', tag: 'Automated', title: 'Zero No-Shows', body: 'Smart 24-hour and 1-hour SMS reminders go out automatically. Clients confirm or reschedule with a tap. No-shows drop immediately.' },
+    { icon: '💰', tag: 'Revenue', title: 'Slow-Day Deals', body: 'Tuesday looking empty? AI writes a deal, posts to your IG, and texts your regulars. Most shops fill 2-3 extra chairs per week on autopilot.' },
+    { icon: '⭐', tag: 'Reputation', title: 'Google Reviews on Autopilot', body: 'Auto-request reviews after every cut. Clients tap through in 10 seconds. Your Google rating climbs while you work.' },
+    { icon: '📊', tag: 'Insights', title: 'Business Advisor', body: 'Your AI reads your numbers every week and tells you exactly what to do next — like having a business coach who actually gets the chair.' },
   ]
 
   const types = [
-    { emoji: '✂️', label: 'Barbershops' },
-    { emoji: '💅', label: 'Nail Salons' },
-    { emoji: '👁', label: 'Lash Studios' },
+    { emoji: '✂️', label: 'Solo Barbers' },
+    { emoji: '💈', label: 'Barbershops' },
+    { emoji: '👥', label: 'Booth Renters' },
     { emoji: '💇', label: 'Hair Salons' },
-    { emoji: '🧖', label: 'Spas' },
-    { emoji: '🎨', label: 'Tattoo Studios' },
+    { emoji: '💅', label: 'Nail Studios' },
+    { emoji: '🎨', label: 'Tattoo Artists' },
   ]
 
   const plans = [
     {
-      name: 'Basic', price: '$150', period: '/mo',
-      desc: 'Everything you need to run a modern salon.',
-      features: ['Custom booking website', 'AI missed call response', '24hr & 1hr reminders', 'Review automation', 'Win-back campaigns', 'Live dashboard'],
+      name: 'Solo', price: '$79', period: '/mo', hot: true,
+      desc: 'For solo barbers and booth renters. One chair, full power.',
+      features: ['Your own branded booking page', 'SMS confirmations + reminders', 'AI missed-call text-back', 'Slow-day deal generator', 'Google reviews automation', 'No booking fees, no cut of tips'],
     },
     {
-      name: 'Pro', price: '$250', period: '/mo', hot: true,
-      desc: 'For shops serious about growth and automation.',
-      features: ['Everything in Basic', 'AI business advisor', 'Multi-staff calendar', 'Birthday campaigns', 'VIP outcall booking', 'Advanced analytics', 'Priority support'],
+      name: 'Shop', price: '$150', period: '/mo',
+      desc: 'For 2-5 chair shops with staff.',
+      features: ['Everything in Solo', 'Multi-staff calendar', 'Per-barber booking pages', 'AI business advisor', 'Win-back campaigns', 'Advanced analytics'],
     },
     {
-      name: 'Enterprise', price: 'Custom', period: '',
-      desc: 'Multi-location chains and white-label agencies.',
-      features: ['Everything in Pro', 'Multi-location support', 'Custom AI training', 'White-label option', 'API access', 'Dedicated account manager'],
+      name: 'Pro', price: '$250', period: '/mo',
+      desc: 'For multi-location shops and franchises.',
+      features: ['Everything in Shop', 'Multi-location support', 'White-label option', 'Custom AI training', 'API access', 'Priority support'],
     },
   ]
 
   const faqs = [
-    { q: 'How long does setup take?', a: 'Under 5 minutes. Fill out one form with your shop info, services, and hours — your full platform goes live automatically.' },
-    { q: 'Do I need to know how to code?', a: 'Zero. Everything is built and managed for you. If you can fill out a form, you can run ServiceMind.' },
-    { q: 'What happens to my existing bookings?', a: 'We sync with your current calendar or give you a fresh one. Either way, nothing gets lost in the transition.' },
-    { q: 'Does it replace GoHighLevel?', a: 'ServiceMind runs on GHL under the hood — but your clients never see it. They just see your brand, your site, your experience.' },
-    { q: 'Can I cancel anytime?', a: 'Yes. No contracts, no cancellation fees. Your site stays up until the end of your billing period.' },
-    { q: 'Does it work for my salon type?', a: 'ServiceMind is built for any chair-based service business — barbershops, nail salons, lash studios, spas, tattoo studios, and more.' },
+    { q: 'How long does setup take?', a: 'Under 5 minutes. Fill out one form with your shop info, services, and hours — your booking page and SMS confirmations go live automatically.' },
+    { q: 'Do I need a credit card to start?', a: 'No. Start your 30-day free trial with just an email. We only ask for a card if you decide to keep going after the trial.' },
+    { q: 'Do you take a cut of my tips or bookings?', a: 'Never. Flat $79/mo for Solo — no booking fees, no commission on tips, no hidden charges. What clients pay, you keep.' },
+    { q: 'Can I cancel anytime?', a: 'Yes. No contracts, no cancellation fees. Your booking page stays up until the end of your billing period. Your data is always yours to export.' },
+    { q: 'Will my existing clients have to do anything?', a: 'Nope. Your new booking link drops into your Instagram bio or wherever you share it. Clients just tap and book — no app download, no account creation.' },
+    { q: 'Does it work for my shop type?', a: 'Built first for solo barbers and small barbershops. Also works great for hair salons, nail studios, tattoo artists, and booth renters — any chair-based service business.' },
   ]
 
   const S = {
@@ -89,7 +89,7 @@ function Home({ onStart, onLogin }) {
       <nav style={S.nav}>
         <div>
           <div className="cinzel" style={{ fontSize: 17, letterSpacing: '.35em', color: 'var(--gold)' }}>ServiceMind</div>
-          <div style={{ fontSize: 9, letterSpacing: '.3em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 1 }}>AI Operating System for Salons</div>
+          <div style={{ fontSize: 9, letterSpacing: '.3em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 1 }}>The Booking System for Barbers</div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <a href="#features" style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted)', padding: '0 12px', transition: 'color .2s' }}
@@ -109,23 +109,23 @@ function Home({ onStart, onLogin }) {
         <div style={{ position: 'absolute', bottom: '10%', left: '-5%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.04) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
         <div style={{ maxWidth: 800, position: 'relative' }}>
-          <div className="eyebrow" style={{ marginBottom: 32 }}>Introducing ServiceMind</div>
+          <div className="eyebrow" style={{ marginBottom: 32 }}>For Solo Barbers &amp; Small Shops</div>
           <h1 className="cormorant" style={{ fontSize: 'clamp(60px,7vw,108px)', fontWeight: 300, lineHeight: 1.0, marginBottom: 36, letterSpacing: '-.01em' }}>
-            The AI That<br />
-            <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Runs Your Salon</em><br />
-            For You.
+            The Booking<br />
+            <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>System Built</em><br />
+            for Barbers.
           </h1>
           <p style={{ fontSize: 17, color: 'var(--text-2)', lineHeight: 1.9, maxWidth: 540, marginBottom: 56 }}>
-            One platform. Custom booking site, AI that books appointments, responds to clients, requests reviews, runs campaigns, and advises your business — all without you lifting a finger.
+            Your own branded booking page, SMS confirmations that feel personal, AI that fills your slow days — all for $79/mo. No booking fees. No cut of your tips. Cancel anytime.
           </p>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 60 }}>
-            <button onClick={onStart} className="btn-gold" style={{ padding: '18px 52px', fontSize: 12 }}>Start Free Trial</button>
+            <button onClick={onStart} className="btn-gold" style={{ padding: '18px 52px', fontSize: 12 }}>Start 30-Day Free Trial</button>
             <button onClick={onLogin} className="btn-ghost" style={{ padding: '18px 32px', fontSize: 11 }}>I Already Have an Account</button>
           </div>
 
           {/* Social proof */}
           <div style={{ display: 'flex', gap: 48, paddingTop: 48, borderTop: '1px solid var(--border-dim)' }}>
-            {[['14 Day', 'Free Trial'], ['$0', 'Setup Fee'], ['5 Min', 'Setup Time'], ['Cancel', 'Anytime']].map(([a, b]) => (
+            {[['30 Day', 'Free Trial'], ['No Card', 'Required'], ['5 Min', 'Setup'], ['Cancel', 'Anytime']].map(([a, b]) => (
               <div key={b}>
                 <div className="cormorant" style={{ fontSize: 30, fontWeight: 300, color: 'var(--gold)', lineHeight: 1 }}>{a}</div>
                 <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 4 }}>{b}</div>
@@ -154,8 +154,8 @@ function Home({ onStart, onLogin }) {
         <div style={{ marginBottom: 72 }}>
           <div className="eyebrow" style={{ marginBottom: 24 }}>What ServiceMind Does</div>
           <h2 className="cormorant" style={{ fontSize: 'clamp(40px,4.5vw,72px)', fontWeight: 300, lineHeight: 1.1 }}>
-            Not a booking app.<br />
-            <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>An AI operating system.</em>
+            More than booking.<br />
+            <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Runs your chair for you.</em>
           </h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 2 }}>
@@ -181,14 +181,14 @@ function Home({ onStart, onLogin }) {
         <div style={{ maxWidth: 600, position: 'relative' }}>
           <div className="eyebrow" style={{ marginBottom: 28 }}>The AI Layer</div>
           <h2 className="cormorant" style={{ fontSize: 'clamp(36px,4vw,64px)', fontWeight: 300, lineHeight: 1.1, marginBottom: 28 }}>
-            It books, responds, advises,<br />
-            and <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>markets</em> — automatically.
+            It books, texts, and fills<br />
+            your <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>slow days</em> — automatically.
           </h2>
           <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9, marginBottom: 40 }}>
-            ServiceMind's AI doesn't just automate tasks — it runs your business. It analyzes your numbers, spots slow days before they happen, drafts campaigns, handles every client conversation, and gives you a weekly briefing on what to focus on.
+            While you're in the chair, ServiceMind's AI is working. It answers missed calls, confirms bookings by text, nudges no-shows, spots slow days early, and writes promos that actually bring people in.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {['AI responds to missed calls and books appointments in real time', 'AI analyzes revenue trends and tells you exactly what to do next', 'AI writes and sends your marketing campaigns automatically', 'AI manages every review — request, respond, and remove'].map((item, i) => (
+            {['AI texts back missed calls and books the appointment in real time', 'AI spots slow days early and writes promo texts to fill your chair', 'AI sends reminder + confirmation SMS that feel like you wrote them', 'AI asks for Google reviews at the perfect moment after every cut'].map((item, i) => (
               <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <span style={{ color: 'var(--gold)', fontSize: 12, marginTop: 2, flexShrink: 0 }}>✦</span>
                 <span style={{ fontSize: 14, color: 'var(--text-2)' }}>{item}</span>
@@ -229,7 +229,7 @@ function Home({ onStart, onLogin }) {
                   ))}
                 </div>
                 <button onClick={onStart} className={p.hot ? 'btn-gold' : 'btn-ghost'} style={{ width: '100%', textAlign: 'center' }}>
-                  {p.price === 'Custom' ? 'Contact Us' : 'Start Free Trial'}
+                  Start 30-Day Free Trial
                 </button>
               </div>
             </div>
@@ -286,9 +286,9 @@ function Home({ onStart, onLogin }) {
       <footer style={{ borderTop: '1px solid var(--border-dim)', padding: '60px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 60 }}>
         <div>
           <div className="cinzel" style={{ fontSize: 18, letterSpacing: '.35em', color: 'var(--gold)', marginBottom: 6 }}>ServiceMind</div>
-          <div style={{ fontSize: 9, letterSpacing: '.3em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 20 }}>AI Operating System for Salons</div>
+          <div style={{ fontSize: 9, letterSpacing: '.3em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 20 }}>The Booking System for Barbers</div>
           <p className="cormorant" style={{ fontSize: 16, fontStyle: 'italic', color: 'var(--muted)', lineHeight: 1.7, maxWidth: 280 }}>
-            "Every chair deserves a platform this powerful."
+            "Every chair deserves a booking system that looks like yours."
           </p>
         </div>
         <div>
@@ -302,14 +302,14 @@ function Home({ onStart, onLogin }) {
         </div>
         <div>
           <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.3em', color: 'var(--gold)', marginBottom: 20 }}>Built For</div>
-          {['Barbershops', 'Nail Salons', 'Lash Studios', 'Hair Salons', 'Spas & More'].map(l => (
+          {['Solo Barbers', 'Booth Renters', 'Barbershops', 'Hair Salons', 'Any Chair-Based Shop'].map(l => (
             <div key={l} style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>{l}</div>
           ))}
         </div>
       </footer>
       <div style={{ borderTop: '1px solid var(--border-dim)', padding: '20px 60px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 11, color: 'var(--muted)' }}>© 2026 ServiceMind · servicemind.io</div>
-        <div style={{ fontSize: 11, color: 'var(--muted)' }}>Powered by AI · Built for growth</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)' }}>© 2026 ServiceMind · <a href="/terms" style={{ color: 'var(--muted)', textDecoration: 'none', marginLeft: 8 }}>Terms</a> · <a href="/privacy" style={{ color: 'var(--muted)', textDecoration: 'none', marginLeft: 8 }}>Privacy</a></div>
+        <div style={{ fontSize: 11, color: 'var(--muted)' }}>Built for the chair</div>
       </div>
     </div>
   )
