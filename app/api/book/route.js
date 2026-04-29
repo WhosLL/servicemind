@@ -81,29 +81,51 @@ export async function POST(req) {
     }
 
     // Get salon for SMS
-    const { data: salon } = await sb.from('salons').select('shop_name, twilio_phone_number, slug').eq('id', salon_id).single()
+    const { data: salon } = await sb.from('salons').select('shop_name, twilio_phone_number, personal_phone, slug').eq('id', salon_id).single()
 
-    // Send confirmation SMS
     if (salon?.twilio_phone_number && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-      const dateFormatted = new Date(appointment_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-      const smsBody = `You're booked at ${salon.shop_name} on ${dateFormatted} at ${appointment_time} for ${service_name}. See you then!`
-
       const auth = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')
-      let cleanPhone = client_phone.trim().replace(/[^0-9+]/g, '')
-      if (!cleanPhone.startsWith('+')) {
-        cleanPhone = cleanPhone.length === 10 ? '+1' + cleanPhone : cleanPhone.startsWith('1') ? '+' + cleanPhone : '+' + cleanPhone
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`
+      const dateFormatted = new Date(appointment_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+      const cleanForSms = (raw) => {
+        let p = (raw || '').trim().replace(/[^0-9+]/g, '')
+        if (!p) return null
+        if (!p.startsWith('+')) {
+          p = p.length === 10 ? '+1' + p : p.startsWith('1') ? '+' + p : '+' + p
+        }
+        return p
       }
 
-      await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, {
-        method: 'POST',
-        headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ To: cleanPhone, From: salon.twilio_phone_number, Body: smsBody }),
-      })
+      // Confirmation SMS to the client
+      const clientPhoneClean = cleanForSms(client_phone)
+      if (clientPhoneClean) {
+        const clientBody = `You're booked at ${salon.shop_name} on ${dateFormatted} at ${appointment_time} for ${service_name}. See you then!`
+        await fetch(twilioUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ To: clientPhoneClean, From: salon.twilio_phone_number, Body: clientBody }),
+        })
+        await sb.from('sms_log').insert([{
+          salon_id, to_phone: clientPhoneClean, from_phone: salon.twilio_phone_number,
+          message: clientBody, trigger_type: 'booking_confirmation', status: 'sent'
+        }])
+      }
 
-      await sb.from('sms_log').insert([{
-        salon_id, to_phone: cleanPhone, from_phone: salon.twilio_phone_number,
-        message: smsBody, trigger_type: 'booking_confirmation', status: 'sent'
-      }])
+      // Owner notification — fires only if personal_phone is set and isn't the same as the Twilio number
+      const ownerPhoneClean = cleanForSms(salon.personal_phone)
+      if (ownerPhoneClean && ownerPhoneClean !== salon.twilio_phone_number) {
+        const ownerBody = `New booking at ${salon.shop_name}: ${client_name.trim()} — ${service_name} on ${dateFormatted} at ${appointment_time}. Their phone: ${clientPhoneClean || client_phone}`
+        await fetch(twilioUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ To: ownerPhoneClean, From: salon.twilio_phone_number, Body: ownerBody }),
+        })
+        await sb.from('sms_log').insert([{
+          salon_id, to_phone: ownerPhoneClean, from_phone: salon.twilio_phone_number,
+          message: ownerBody, trigger_type: 'owner_booking_alert', status: 'sent'
+        }])
+      }
     }
 
     return Response.json({ success: true, appointment: appt?.[0] })

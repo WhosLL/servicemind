@@ -326,7 +326,7 @@ export default function BookPage({ params, searchParams }) {
                   style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: isSelected ? 'rgba(201,168,76,0.08)' : dark2, border: `1px solid ${isSelected ? gold : border}`, color: '#eee', cursor: 'pointer', marginBottom: 2, textAlign: 'left', transition: 'all .2s' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 20, height: 20, border: `1px solid ${isSelected ? gold : border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: gold, flexShrink: 0 }}>
-                      {isSelected ? '&#10003;' : ''}
+                      {isSelected ? '✓' : ''}
                     </div>
                     <div style={{ fontSize: 13 }}>{addon.name}</div>
                   </div>
