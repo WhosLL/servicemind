@@ -66,6 +66,27 @@ export async function POST(req) {
       }
     }
 
+    // TCPA compliance: don't send to opted-out clients.
+    // Phone storage is inconsistent across codepaths; match on last 10 digits.
+    const last10 = cleanPhone.replace(/[^0-9]/g, '').slice(-10)
+    if (last10) {
+      const { data: optOut } = await sb
+        .from('clients')
+        .select('id, sms_opted_out_at')
+        .eq('salon_id', salon_id)
+        .ilike('phone', `%${last10}`)
+        .not('sms_opted_out_at', 'is', null)
+        .limit(1)
+      if (optOut?.length) {
+        await sb.from('sms_log').insert([{
+          salon_id, to_phone: cleanPhone, from_phone: salon.twilio_phone_number,
+          message, trigger_type, campaign_id,
+          status: 'blocked_opt_out', error_message: 'Recipient has opted out of SMS'
+        }])
+        return Response.json({ error: 'Recipient has opted out of SMS' }, { status: 403 })
+      }
+    }
+
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`
     const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')
 

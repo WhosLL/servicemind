@@ -15,10 +15,14 @@ function getSb() {
 export async function POST(req) {
   try {
     const sb = getSb()
-    const { salon_id, client_name, client_phone, service_id, service_name, addon_ids, addon_names, total_price, appointment_date, appointment_time, notes, referral_code } = await req.json()
+    const { salon_id, client_name, client_phone, service_id, service_name, addon_ids, addon_names, total_price, appointment_date, appointment_time, notes, referral_code, sms_consent } = await req.json()
 
     if (!salon_id || !client_name || !client_phone || !service_name || !appointment_date || !appointment_time) {
       return Response.json({ error: 'Missing required booking fields' }, { status: 400 })
+    }
+
+    if (sms_consent !== true) {
+      return Response.json({ error: 'SMS consent is required to confirm a booking' }, { status: 400 })
     }
 
     // Insert appointment
@@ -58,12 +62,15 @@ export async function POST(req) {
       if (referrer) referredByName = referrer.name
     }
 
+    const nowIso = new Date().toISOString()
     if (existingClient) {
       await sb.from('clients').update({
         total_visits: (existingClient.total_visits || 0) + 1,
         total_spent: (existingClient.total_spent || 0) + (total_price || 0),
-        last_visit_at: new Date().toISOString(),
-        name: client_name.trim()
+        last_visit_at: nowIso,
+        name: client_name.trim(),
+        sms_consent_at: nowIso,
+        sms_opted_out_at: null
       }).eq('id', existingClient.id)
     } else {
       const newCode = crypto.randomBytes(3).toString('hex').toUpperCase()
@@ -73,10 +80,11 @@ export async function POST(req) {
         phone: client_phone.trim(),
         total_visits: 1,
         total_spent: total_price || 0,
-        last_visit_at: new Date().toISOString(),
+        last_visit_at: nowIso,
         source: 'booking_page',
         referral_code: newCode,
-        referred_by: referredByName || (referral_code ? referral_code : null)
+        referred_by: referredByName || (referral_code ? referral_code : null),
+        sms_consent_at: nowIso
       }])
     }
 

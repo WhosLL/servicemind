@@ -85,6 +85,41 @@ export async function POST(req) {
       return twimlResponse('This number is not currently active.')
     }
 
+    // Carrier-required keyword handling — runs before AI receptionist.
+    // STOP keywords opt the client out; HELP returns a help message; START re-subscribes.
+    const normalized = body.trim().toUpperCase()
+    const stopKeywords = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']
+    const helpKeywords = ['HELP', 'INFO']
+    const startKeywords = ['START', 'UNSTOP', 'YES']
+
+    if (stopKeywords.includes(normalized)) {
+      await sb.from('clients')
+        .update({ sms_opted_out_at: new Date().toISOString() })
+        .eq('salon_id', salon.id)
+        .eq('phone', from)
+      await sb.from('sms_log').insert([{
+        salon_id: salon.id, to_phone: from, from_phone: to,
+        message: body, trigger_type: 'opt_out', status: 'received'
+      }])
+      return twimlResponse(`You've been unsubscribed from ${salon.shop_name}. No more messages will be sent. Reply START to resubscribe.`)
+    }
+
+    if (helpKeywords.includes(normalized)) {
+      return twimlResponse(`${salon.shop_name}: Booking confirmations & reminders. Reply STOP to unsubscribe. Msg&data rates may apply. Msg freq varies.`)
+    }
+
+    if (startKeywords.includes(normalized)) {
+      await sb.from('clients')
+        .update({ sms_opted_out_at: null, sms_consent_at: new Date().toISOString() })
+        .eq('salon_id', salon.id)
+        .eq('phone', from)
+      await sb.from('sms_log').insert([{
+        salon_id: salon.id, to_phone: from, from_phone: to,
+        message: body, trigger_type: 'opt_in', status: 'received'
+      }])
+      return twimlResponse(`You're resubscribed to ${salon.shop_name}. Reply STOP at any time to opt out.`)
+    }
+
     const { data: services } = await sb
       .from('salon_services')
       .select('name, price, duration_minutes, category')

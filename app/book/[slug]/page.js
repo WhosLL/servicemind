@@ -56,6 +56,7 @@ export default function BookPage({ params, searchParams }) {
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [clientNotes, setClientNotes] = useState('')
+  const [smsConsent, setSmsConsent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [booked, setBooked] = useState(null)
   const [bookStep, setBookStep] = useState('service') // service, addons, date, time, info
@@ -183,7 +184,8 @@ export default function BookPage({ params, searchParams }) {
           appointment_date: dateStr,
           appointment_time: selectedTime,
           notes: clientNotes.trim(),
-          referral_code: refCode
+          referral_code: refCode,
+          sms_consent: smsConsent
         })
       })
 
@@ -403,8 +405,19 @@ export default function BookPage({ params, searchParams }) {
                 <textarea value={clientNotes} onChange={e => setClientNotes(e.target.value)} placeholder="Anything we should know?" rows={3}
                   style={{ width: '100%', padding: '14px 16px', background: dark2, border: `1px solid ${border}`, color: '#eee', fontSize: 14, outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
               </div>
-              <button onClick={handleBook} disabled={submitting || !clientName.trim() || !clientPhone.trim()}
-                style={{ padding: '16px', background: gold, border: 'none', color: dark, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', fontFamily: 'Cinzel, serif', cursor: 'pointer', marginTop: 8, opacity: submitting || !clientName.trim() || !clientPhone.trim() ? 0.5 : 1 }}>
+              <div style={{ padding: '12px 14px', background: dark2, border: `1px solid ${border}` }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 11, color: muted, lineHeight: 1.6 }}>
+                  <input type="checkbox" checked={smsConsent} onChange={e => setSmsConsent(e.target.checked)}
+                    style={{ marginTop: 3, accentColor: gold, flexShrink: 0, cursor: 'pointer' }} />
+                  <span>
+                    I agree to receive SMS messages from <strong style={{ color: '#ddd' }}>{salon.shop_name}</strong> for booking confirmations, reminders, and occasional promotions. Msg &amp; data rates may apply. Msg frequency varies. Reply STOP to opt out, HELP for help. By checking, I agree to ServiceMind&apos;s{' '}
+                    <a href="/terms" target="_blank" rel="noreferrer" style={{ color: gold, textDecoration: 'underline' }}>Terms</a>{' '}and{' '}
+                    <a href="/privacy" target="_blank" rel="noreferrer" style={{ color: gold, textDecoration: 'underline' }}>Privacy Policy</a>.
+                  </span>
+                </label>
+              </div>
+              <button onClick={handleBook} disabled={submitting || !clientName.trim() || !clientPhone.trim() || !smsConsent}
+                style={{ padding: '16px', background: gold, border: 'none', color: dark, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', fontFamily: 'Cinzel, serif', cursor: 'pointer', marginTop: 8, opacity: submitting || !clientName.trim() || !clientPhone.trim() || !smsConsent ? 0.5 : 1 }}>
                 {submitting ? 'Booking...' : 'Confirm Booking'}
               </button>
             </div>

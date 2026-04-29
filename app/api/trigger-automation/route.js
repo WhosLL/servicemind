@@ -95,15 +95,15 @@ export async function POST(req) {
         let clients = []
         if (trigger_type === 'win_back') {
           const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString()
-          const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).lt('last_visit_at', cutoff).not('phone', 'is', null)
+          const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).lt('last_visit_at', cutoff).not('phone', 'is', null).is('sms_opted_out_at', null)
           clients = data || []
         } else if (trigger_type === 'birthday') {
           const today = new Date()
           const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-          const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).like('birthday', `%${monthDay}`).not('phone', 'is', null)
+          const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).like('birthday', `%${monthDay}`).not('phone', 'is', null).is('sms_opted_out_at', null)
           clients = data || []
         } else if (trigger_type === 'slow_day') {
-          const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).not('phone', 'is', null).limit(50)
+          const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).not('phone', 'is', null).is('sms_opted_out_at', null).limit(50)
           clients = data || []
         }
 
