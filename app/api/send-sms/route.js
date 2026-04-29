@@ -20,6 +20,20 @@ export async function POST(req) {
       return Response.json({ error: 'Missing required fields: salon_id, to, message' }, { status: 400 })
     }
 
+    // Auth: accept either CRON_SECRET (internal) or a user Bearer token whose user owns this salon
+    const authHeader = req.headers.get('authorization') || ''
+    if (!authHeader.startsWith('Bearer ')) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const isCron = process.env.CRON_SECRET && token === process.env.CRON_SECRET
+    if (!isCron) {
+      const { data: { user }, error: authErr } = await sb.auth.getUser(token)
+      if (authErr || !user) return Response.json({ error: 'Invalid session' }, { status: 401 })
+      const { data: ownership } = await sb.from('salons').select('id').eq('id', salon_id).eq('user_id', user.id).single()
+      if (!ownership) return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID
     const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN
 

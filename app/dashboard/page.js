@@ -222,9 +222,13 @@ export default function Dashboard() {
     if (!testPhone.trim()) return
     setTestSending(true); setTestResult('')
     try {
+      const { data: { session } } = await sb().auth.getSession()
       const res = await fetch('/api/send-sms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        },
         body: JSON.stringify({
           salon_id: salon.id,
           to: testPhone,
@@ -248,9 +252,13 @@ export default function Dashboard() {
   // --- Trigger automation (for manual fire) ---
   const fireAutomation = async (triggerType, clientPhone, clientName) => {
     try {
+      const { data: { session } } = await sb().auth.getSession()
       const res = await fetch('/api/trigger-automation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        },
         body: JSON.stringify({
           salon_id: salon.id,
           trigger_type: triggerType,

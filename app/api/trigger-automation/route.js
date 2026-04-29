@@ -14,7 +14,7 @@ function getSb() {
 function fillTemplate(template, vars) {
   let msg = template
   Object.entries(vars).forEach(([key, val]) => {
-    msg = msg.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val || '')
+    msg = msg.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val == null ? '' : String(val))
   })
   return msg
 }
@@ -22,10 +22,25 @@ function fillTemplate(template, vars) {
 export async function POST(req) {
   try {
     const sb = getSb()
-    const { salon_id, trigger_type, client_phone, client_name, service_name, booking_date } = await req.json()
+    const body = await req.json()
+    const { salon_id, trigger_type, client_phone, client_name, service_name, booking_date, time } = body
 
     if (!salon_id || !trigger_type) {
       return Response.json({ error: 'Missing salon_id or trigger_type' }, { status: 400 })
+    }
+
+    // Auth: accept either CRON_SECRET (internal/cron) or a user Bearer token whose user owns this salon
+    const authHeader = req.headers.get('authorization') || ''
+    if (!authHeader.startsWith('Bearer ')) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const token = authHeader.replace('Bearer ', '')
+    const isCron = process.env.CRON_SECRET && token === process.env.CRON_SECRET
+    if (!isCron) {
+      const { data: { user }, error: authErr } = await sb.auth.getUser(token)
+      if (authErr || !user) return Response.json({ error: 'Invalid session' }, { status: 401 })
+      const { data: ownership } = await sb.from('salons').select('id').eq('id', salon_id).eq('user_id', user.id).single()
+      if (!ownership) return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { data: salon } = await sb.from('salons').select('*').eq('id', salon_id).single()
@@ -53,6 +68,7 @@ export async function POST(req) {
         owner_name: salon.owner_name || '',
         service_name: service_name || '',
         booking_date: booking_date || '',
+        time: time || '',
         booking_link: `https://servicemind.vercel.app/book/${salon.slug}`,
         review_link: `https://servicemind.vercel.app/book/${salon.slug}#review`,
       })
@@ -60,7 +76,10 @@ export async function POST(req) {
       if (client_phone) {
         const smsRes = await fetch(new URL('/api/send-sms', req.url).href, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.CRON_SECRET}`
+          },
           body: JSON.stringify({ salon_id, to: client_phone, message, trigger_type, campaign_id: campaign.id })
         })
         const smsData = await smsRes.json()
@@ -91,13 +110,16 @@ export async function POST(req) {
         for (const client of clients) {
           const personalMsg = fillTemplate(campaign.message_template, {
             client_name: client.name || 'there', shop_name: salon.shop_name || '', owner_name: salon.owner_name || '',
-            service_name: '', booking_date: '',
+            service_name: '', booking_date: '', time: '',
             booking_link: `https://servicemind.vercel.app/book/${salon.slug}`,
             review_link: `https://servicemind.vercel.app/book/${salon.slug}#review`,
           })
           const smsRes = await fetch(new URL('/api/send-sms', req.url).href, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.CRON_SECRET}`
+            },
             body: JSON.stringify({ salon_id, to: client.phone, message: personalMsg, trigger_type, campaign_id: campaign.id })
           })
           const smsData = await smsRes.json()
