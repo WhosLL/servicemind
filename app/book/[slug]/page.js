@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { getTemplate } from '../../../lib/templates'
 import '../../globals.css'
 
 const supabase = createClient(
@@ -38,8 +39,6 @@ function googleCalUrl(salon, serviceName, duration, date, time) {
   return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(serviceName + ' at ' + salon.shop_name)}&dates=${fmt(start)}/${fmt(end)}&details=${encodeURIComponent('Booked via ServiceMind')}&location=${encodeURIComponent([salon.address, salon.city, salon.state].filter(Boolean).join(', '))}`
 }
 
-const gold = '#C9A84C', dark = '#0a0a0a', dark2 = '#111', dark3 = '#1a1a1a', muted = '#777', border = '#222'
-
 export default function BookPage({ params, searchParams }) {
   const { slug } = params
   const refCode = searchParams?.ref || null
@@ -60,6 +59,20 @@ export default function BookPage({ params, searchParams }) {
   const [submitting, setSubmitting] = useState(false)
   const [booked, setBooked] = useState(null)
   const [bookStep, setBookStep] = useState('service') // service, addons, date, time, info
+
+  // Template-driven theming. Falls back to luxury before salon loads.
+  const tpl = getTemplate(salon?.template_id)
+  const tc = tpl.colors
+  const gold = tc.accent
+  const dark = tc.bg
+  const dark2 = tc.surface
+  const dark3 = tc.surface2
+  const muted = tc.muted
+  const border = tc.border
+  const text = tc.text
+  const accentInk = tc.accentInk
+  const fontDisplay = `${tpl.fonts.display}, ${tpl.fonts.displayFallback || 'serif'}`
+  const fontBody = `${tpl.fonts.body}, ${tpl.fonts.bodyFallback || 'serif'}`
 
   useEffect(() => {
     const load = async () => {
@@ -214,7 +227,7 @@ export default function BookPage({ params, searchParams }) {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: dark, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: gold, fontSize: 12, letterSpacing: '.3em', textTransform: 'uppercase', fontFamily: 'Cinzel, serif' }}>Loading...</div>
+      <div style={{ color: gold, fontSize: 12, letterSpacing: '.3em', textTransform: 'uppercase', fontFamily: fontDisplay }}>Loading...</div>
     </div>
   )
 
@@ -222,7 +235,7 @@ export default function BookPage({ params, searchParams }) {
     <div style={{ minHeight: '100vh', background: dark, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 48, color: gold, marginBottom: 20 }}>404</div>
-        <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 28, color: '#eee', marginBottom: 12 }}>Shop not found</div>
+        <div style={{ fontFamily: fontBody, fontSize: 28, color: text, marginBottom: 12 }}>Shop not found</div>
         <div style={{ color: muted, fontSize: 14 }}>This booking link doesn't match any shop.</div>
       </div>
     </div>
@@ -232,18 +245,18 @@ export default function BookPage({ params, searchParams }) {
     <div style={{ minHeight: '100vh', background: dark, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 440, textAlign: 'center' }}>
         <div style={{ fontSize: 48, color: gold, marginBottom: 20 }}>&#10003;</div>
-        <div style={{ fontFamily: 'Cinzel, serif', fontSize: 12, color: gold, letterSpacing: '.35em', marginBottom: 16 }}>CONFIRMED</div>
-        <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 36, color: '#eee', fontWeight: 300, marginBottom: 32, lineHeight: 1.2 }}>
+        <div style={{ fontFamily: fontDisplay, fontSize: 12, color: gold, letterSpacing: '.35em', marginBottom: 16 }}>CONFIRMED</div>
+        <div style={{ fontFamily: fontBody, fontSize: 36, color: text, fontWeight: 300, marginBottom: 32, lineHeight: 1.2 }}>
           You're <em style={{ color: gold, fontStyle: 'italic' }}>booked.</em>
         </div>
         <div style={{ background: dark3, border: `1px solid ${border}`, padding: 28, marginBottom: 24 }}>
-          <div style={{ fontSize: 16, color: '#eee', marginBottom: 8 }}>{booked.serviceName}</div>
+          <div style={{ fontSize: 16, color: text, marginBottom: 8 }}>{booked.serviceName}</div>
           <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>{new Date(booked.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
           <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>{booked.time}</div>
           <div style={{ fontSize: 16, color: gold, marginTop: 12 }}>${booked.totalPrice}</div>
         </div>
         <a href={booked.calUrl} target="_blank" rel="noreferrer"
-          style={{ display: 'inline-block', padding: '14px 32px', border: `1px solid ${gold}`, color: gold, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', textDecoration: 'none', fontFamily: 'Cinzel, serif', marginBottom: 16 }}>
+          style={{ display: 'inline-block', padding: '14px 32px', border: `1px solid ${gold}`, color: gold, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', textDecoration: 'none', fontFamily: fontDisplay, marginBottom: 16 }}>
           Add to Calendar
         </a>
         <div style={{ fontSize: 12, color: muted, marginTop: 16 }}>See you at {salon.shop_name}!</div>
@@ -257,13 +270,13 @@ export default function BookPage({ params, searchParams }) {
       <div style={{ background: dark3, border: `1px solid ${border}`, padding: '14px 18px', marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 14, color: '#eee' }}>{selectedService.name}</div>
+            <div style={{ fontSize: 14, color: text }}>{selectedService.name}</div>
             {selectedAddons.length > 0 && (
               <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>+ {selectedAddons.map(a => a.name).join(', ')}</div>
             )}
             {selectedDate && <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>{formatDateShort(selectedDate)}{selectedTime ? ` at ${selectedTime}` : ''}</div>}
           </div>
-          <div style={{ color: gold, fontSize: 18, fontFamily: 'Cormorant Garamond, serif' }}>${totalPrice}</div>
+          <div style={{ color: gold, fontSize: 18, fontFamily: fontBody }}>${totalPrice}</div>
         </div>
       </div>
     ) : null
@@ -285,8 +298,8 @@ export default function BookPage({ params, searchParams }) {
   return (
     <div style={{ minHeight: '100vh', background: dark, padding: '0 0 60px' }}>
       <div style={{ padding: '32px 24px', textAlign: 'center', borderBottom: `1px solid ${border}` }}>
-        <div style={{ fontFamily: 'Cinzel, serif', fontSize: 11, color: gold, letterSpacing: '.35em', marginBottom: 8 }}>SERVICEMIND</div>
-        <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 32, color: '#eee', fontWeight: 300, lineHeight: 1.1 }}>{salon.shop_name}</div>
+        <div style={{ fontFamily: fontDisplay, fontSize: 11, color: gold, letterSpacing: '.35em', marginBottom: 8 }}>SERVICEMIND</div>
+        <div style={{ fontFamily: fontBody, fontSize: 32, color: text, fontWeight: 300, lineHeight: 1.1 }}>{salon.shop_name}</div>
         <div style={{ fontSize: 12, color: muted, marginTop: 8 }}>{[salon.salon_type, salon.city, salon.state].filter(Boolean).join(' Â· ')}</div>
         {salon.phone && <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{salon.phone}</div>}
       </div>
@@ -296,18 +309,18 @@ export default function BookPage({ params, searchParams }) {
         {/* SELECT SERVICE */}
         {bookStep === 'service' && (
           <div style={{ paddingTop: 28 }}>
-            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 20, textTransform: 'uppercase' }}>Select a Service</div>
+            <div style={{ fontFamily: fontDisplay, fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 20, textTransform: 'uppercase' }}>Select a Service</div>
             {sortedCats.map(cat => (
               <div key={cat} style={{ marginBottom: 24 }}>
                 <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: muted, marginBottom: 8, paddingLeft: 2 }}>{cat}</div>
                 {grouped[cat].map(svc => (
                   <button key={svc.id} onClick={() => { setSelectedService(svc); setSelectedAddons([]); setBookStep(addonServices.length > 0 ? 'addons' : 'date') }}
-                    style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', background: dark2, border: `1px solid ${border}`, color: '#eee', cursor: 'pointer', marginBottom: 2, textAlign: 'left' }}>
+                    style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', background: dark2, border: `1px solid ${border}`, color: text, cursor: 'pointer', marginBottom: 2, textAlign: 'left' }}>
                     <div>
                       <div style={{ fontSize: 14, marginBottom: 3 }}>{svc.name}</div>
                       <div style={{ fontSize: 11, color: muted }}>{svc.duration_minutes} min{svc.description ? (' · ' + svc.description) : ''}</div>
                     </div>
-                    <div style={{ color: gold, fontSize: 16, fontFamily: 'Cormorant Garamond, serif', flexShrink: 0, marginLeft: 12 }}>${svc.price}</div>
+                    <div style={{ color: gold, fontSize: 16, fontFamily: fontBody, flexShrink: 0, marginLeft: 12 }}>${svc.price}</div>
                   </button>
                 ))}
               </div>
@@ -320,12 +333,12 @@ export default function BookPage({ params, searchParams }) {
           <div style={{ paddingTop: 28 }}>
             <button onClick={() => { setBookStep('service'); setSelectedService(null) }} style={{ background: 'none', border: `1px solid ${border}`, color: muted, padding: '8px 16px', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', cursor: 'pointer', marginBottom: 20 }}>&#8592; Back</button>
             <Summary />
-            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 16, textTransform: 'uppercase' }}>Add Extras (optional)</div>
+            <div style={{ fontFamily: fontDisplay, fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 16, textTransform: 'uppercase' }}>Add Extras (optional)</div>
             {addonServices.map(addon => {
               const isSelected = selectedAddons.find(a => a.id === addon.id)
               return (
                 <button key={addon.id} onClick={() => toggleAddon(addon)}
-                  style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: isSelected ? 'rgba(201,168,76,0.08)' : dark2, border: `1px solid ${isSelected ? gold : border}`, color: '#eee', cursor: 'pointer', marginBottom: 2, textAlign: 'left', transition: 'all .2s' }}>
+                  style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: isSelected ? 'rgba(201,168,76,0.08)' : dark2, border: `1px solid ${isSelected ? gold : border}`, color: text, cursor: 'pointer', marginBottom: 2, textAlign: 'left', transition: 'all .2s' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 20, height: 20, border: `1px solid ${isSelected ? gold : border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: gold, flexShrink: 0 }}>
                       {isSelected ? '✓' : ''}
@@ -337,7 +350,7 @@ export default function BookPage({ params, searchParams }) {
               )
             })}
             <button onClick={() => setBookStep('date')}
-              style={{ width: '100%', padding: '16px', background: gold, border: 'none', color: dark, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', fontFamily: 'Cinzel, serif', cursor: 'pointer', marginTop: 16 }}>
+              style={{ width: '100%', padding: '16px', background: gold, border: 'none', color: dark, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', fontFamily: fontDisplay, cursor: 'pointer', marginTop: 16 }}>
               Continue &#8594;
             </button>
           </div>
@@ -348,11 +361,11 @@ export default function BookPage({ params, searchParams }) {
           <div style={{ paddingTop: 28 }}>
             <button onClick={() => setBookStep(addonServices.length > 0 ? 'addons' : 'service')} style={{ background: 'none', border: `1px solid ${border}`, color: muted, padding: '8px 16px', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', cursor: 'pointer', marginBottom: 20 }}>&#8592; Back</button>
             <Summary />
-            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 16, textTransform: 'uppercase' }}>Pick a Date</div>
+            <div style={{ fontFamily: fontDisplay, fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 16, textTransform: 'uppercase' }}>Pick a Date</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
               {getAvailableDates().map((d, i) => (
                 <button key={i} onClick={() => { setSelectedDate(d); setSelectedTime(null); setBookStep('time') }}
-                  style={{ padding: '14px 8px', background: dark2, border: `1px solid ${border}`, color: '#eee', cursor: 'pointer', fontSize: 12, textAlign: 'center' }}>
+                  style={{ padding: '14px 8px', background: dark2, border: `1px solid ${border}`, color: text, cursor: 'pointer', fontSize: 12, textAlign: 'center' }}>
                   {formatDateShort(d)}
                 </button>
               ))}
@@ -368,11 +381,11 @@ export default function BookPage({ params, searchParams }) {
           <div style={{ paddingTop: 28 }}>
             <button onClick={() => { setBookStep('date'); setSelectedDate(null) }} style={{ background: 'none', border: `1px solid ${border}`, color: muted, padding: '8px 16px', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', cursor: 'pointer', marginBottom: 20 }}>&#8592; Back</button>
             <Summary />
-            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 16, textTransform: 'uppercase' }}>Pick a Time</div>
+            <div style={{ fontFamily: fontDisplay, fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 16, textTransform: 'uppercase' }}>Pick a Time</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
               {getTimeSlots().map((t, i) => (
                 <button key={i} onClick={() => { setSelectedTime(t); setBookStep('info') }}
-                  style={{ padding: '14px 8px', background: dark2, border: `1px solid ${border}`, color: '#eee', cursor: 'pointer', fontSize: 13, textAlign: 'center' }}>
+                  style={{ padding: '14px 8px', background: dark2, border: `1px solid ${border}`, color: text, cursor: 'pointer', fontSize: 13, textAlign: 'center' }}>
                   {t}
                 </button>
               ))}
@@ -388,22 +401,22 @@ export default function BookPage({ params, searchParams }) {
           <div style={{ paddingTop: 28 }}>
             <button onClick={() => { setBookStep('time'); setSelectedTime(null) }} style={{ background: 'none', border: `1px solid ${border}`, color: muted, padding: '8px 16px', fontSize: 10, letterSpacing: '.15em', textTransform: 'uppercase', cursor: 'pointer', marginBottom: 20 }}>&#8592; Back</button>
             <Summary />
-            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 16, textTransform: 'uppercase' }}>Your Info</div>
+            <div style={{ fontFamily: fontDisplay, fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 16, textTransform: 'uppercase' }}>Your Info</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
                 <label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: 6 }}>Name *</label>
                 <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Your name"
-                  style={{ width: '100%', padding: '14px 16px', background: dark2, border: `1px solid ${border}`, color: '#eee', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', padding: '14px 16px', background: dark2, border: `1px solid ${border}`, color: text, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: 6 }}>Phone *</label>
                 <input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="(555) 000-0000" type="tel"
-                  style={{ width: '100%', padding: '14px 16px', background: dark2, border: `1px solid ${border}`, color: '#eee', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', padding: '14px 16px', background: dark2, border: `1px solid ${border}`, color: text, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
                 <textarea value={clientNotes} onChange={e => setClientNotes(e.target.value)} placeholder="Anything we should know?" rows={3}
-                  style={{ width: '100%', padding: '14px 16px', background: dark2, border: `1px solid ${border}`, color: '#eee', fontSize: 14, outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', padding: '14px 16px', background: dark2, border: `1px solid ${border}`, color: text, fontSize: 14, outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
               </div>
               <div style={{ padding: '12px 14px', background: dark2, border: `1px solid ${border}` }}>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 11, color: muted, lineHeight: 1.6 }}>
@@ -417,7 +430,7 @@ export default function BookPage({ params, searchParams }) {
                 </label>
               </div>
               <button onClick={handleBook} disabled={submitting || !clientName.trim() || !clientPhone.trim() || !smsConsent}
-                style={{ padding: '16px', background: gold, border: 'none', color: dark, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', fontFamily: 'Cinzel, serif', cursor: 'pointer', marginTop: 8, opacity: submitting || !clientName.trim() || !clientPhone.trim() || !smsConsent ? 0.5 : 1 }}>
+                style={{ padding: '16px', background: gold, border: 'none', color: dark, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', fontFamily: fontDisplay, cursor: 'pointer', marginTop: 8, opacity: submitting || !clientName.trim() || !clientPhone.trim() || !smsConsent ? 0.5 : 1 }}>
                 {submitting ? 'Booking...' : 'Confirm Booking'}
               </button>
             </div>

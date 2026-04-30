@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { sb } from '../../lib/supabase'
+import { TEMPLATE_LIST } from '../../lib/templates'
 import '../globals.css'
 
 const NAV = [
@@ -103,6 +104,8 @@ export default function Dashboard() {
   const [callSettingsSaving, setCallSettingsSaving] = useState(false)
   const [googleReviewUrl, setGoogleReviewUrl] = useState('')
   const [googleReviewSaving, setGoogleReviewSaving] = useState(false)
+  const [templateId, setTemplateId] = useState('luxury')
+  const [templateSaving, setTemplateSaving] = useState(false)
 
   useEffect(() => { if (salon?.id) load() }, [salon?.id])
 
@@ -128,6 +131,7 @@ export default function Dashboard() {
       setCallTier(salon.call_handling_tier || 'ai_text_back')
       setPersonalPhone(salon.personal_phone || '')
       setGoogleReviewUrl(salon.google_review_url || '')
+      setTemplateId(salon.template_id || 'luxury')
       setMissedCallTextBack(salon.missed_call_text_back || false)
       setMissedCallAutoText(salon.missed_call_auto_text || "Hey! Sorry I missed your call. I'm with a client right now. Book your appointment here: {{booking_link}}")
       // Load SMS log
@@ -1242,6 +1246,63 @@ export default function Dashboard() {
                   className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: settingsSaving ? .5 : 1 }}>
                   {settingsSaving ? 'Saving...' : 'Save Profile'}
                 </button>
+              </div>
+
+              {/* Booking Page Style */}
+              <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Booking Page Style</div>
+                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
+                  Pick the <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>vibe</em> that fits your shop.
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 24 }}>
+                  Each template changes how your booking page looks to clients. Pick one, save, then preview your live page to see it in action.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
+                  {TEMPLATE_LIST.map(tpl => {
+                    const selected = templateId === tpl.id
+                    return (
+                      <button key={tpl.id} onClick={() => setTemplateId(tpl.id)}
+                        style={{
+                          padding: 0,
+                          background: 'transparent',
+                          border: `2px solid ${selected ? 'var(--gold)' : 'var(--border-dim)'}`,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all .15s',
+                          overflow: 'hidden',
+                        }}>
+                        <div style={{ height: 80, display: 'flex' }}>
+                          {tpl.swatchColors.map((c, i) => (
+                            <div key={i} style={{ flex: 1, background: c }} />
+                          ))}
+                        </div>
+                        <div style={{ padding: '12px 14px' }}>
+                          <div style={{ fontSize: 13, color: selected ? 'var(--gold)' : 'var(--text)', fontWeight: 500, marginBottom: 4 }}>{tpl.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>{tpl.description}</div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button onClick={async () => {
+                    setTemplateSaving(true)
+                    try {
+                      await sb().from('salons').update({ template_id: templateId }).eq('id', salon.id)
+                      setSalon(s => ({ ...s, template_id: templateId }))
+                      alert('Saved! Refresh your booking page to see the new style.')
+                    } catch (e) { alert('Error: ' + e.message) }
+                    setTemplateSaving(false)
+                  }} disabled={templateSaving || templateId === salon.template_id}
+                    className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: (templateSaving || templateId === salon.template_id) ? .5 : 1 }}>
+                    {templateSaving ? 'Saving...' : (templateId === salon.template_id ? 'Saved' : 'Save Style')}
+                  </button>
+                  <a href={`/book/${salon.slug}`} target="_blank" rel="noreferrer"
+                    style={{ padding: '12px 24px', fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted)', border: '1px solid var(--border-dim)', textDecoration: 'none', fontFamily: 'Cinzel, serif' }}>
+                    Preview Live Page →
+                  </a>
+                </div>
               </div>
 
               <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
