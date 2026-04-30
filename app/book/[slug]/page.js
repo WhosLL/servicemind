@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { getTemplate } from '../../../lib/templates'
+import { getTemplate, heroAccentDef } from '../../../lib/templates'
 import '../../globals.css'
 
 const supabase = createClient(
@@ -73,6 +73,35 @@ export default function BookPage({ params, searchParams }) {
   const accentInk = tc.accentInk
   const fontDisplay = `${tpl.fonts.display}, ${tpl.fonts.displayFallback || 'serif'}`
   const fontBody = `${tpl.fonts.body}, ${tpl.fonts.bodyFallback || 'serif'}`
+  const fontUi = `${tpl.fonts.ui || 'Jost'}, ${tpl.fonts.uiFallback || 'sans-serif'}`
+  const dec = tpl.decoration || {}
+  const eyebrowSpacing = tpl.style?.letterSpacingDisplay || '.3em'
+  const eyebrowTransform = tpl.style?.uppercase === false ? 'none' : 'uppercase'
+  const bgStyle = (dec.bgPattern && dec.bgPattern !== 'none')
+    ? `${dec.bgPattern}, ${dec.bgGradient || dark}`
+    : (dec.bgGradient || dark)
+  const renderHeroAccent = () => {
+    const def = heroAccentDef(dec.heroAccent?.type, gold)
+    if (!def) return null
+    switch (def.type) {
+      case 'gold-line':
+        return <div style={{ height: def.height, width: def.width, background: def.color, opacity: def.opacity, margin: '0 auto 14px' }} />
+      case 'barber-pole':
+        return <div style={{ height: def.height, width: 96, background: def.gradient, margin: '0 auto 14px', borderRadius: 1 }} />
+      case 'lime-bars':
+        return (
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16 }}>
+            {Array.from({ length: def.count }).map((_, i) => <div key={i} style={{ width: 28, height: def.height, background: def.color }} />)}
+          </div>
+        )
+      case 'thin-line':
+        return <div style={{ height: def.height, width: def.width, background: def.color, opacity: def.opacity, margin: '0 auto 12px' }} />
+      case 'orange-circle':
+        return <div style={{ width: def.size, height: def.size, borderRadius: '50%', background: def.color, margin: '0 auto 14px' }} />
+      default:
+        return null
+    }
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -226,13 +255,13 @@ export default function BookPage({ params, searchParams }) {
   const formatDateShort = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: dark, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100vh', background: bgStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ color: gold, fontSize: 12, letterSpacing: '.3em', textTransform: 'uppercase', fontFamily: fontDisplay }}>Loading...</div>
     </div>
   )
 
   if (notFound) return (
-    <div style={{ minHeight: '100vh', background: dark, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div style={{ minHeight: '100vh', background: bgStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 48, color: gold, marginBottom: 20 }}>404</div>
         <div style={{ fontFamily: fontBody, fontSize: 28, color: text, marginBottom: 12 }}>Shop not found</div>
@@ -242,7 +271,7 @@ export default function BookPage({ params, searchParams }) {
   )
 
   if (booked) return (
-    <div style={{ minHeight: '100vh', background: dark, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div style={{ minHeight: '100vh', background: bgStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 440, textAlign: 'center' }}>
         <div style={{ fontSize: 48, color: gold, marginBottom: 20 }}>&#10003;</div>
         <div style={{ fontFamily: fontDisplay, fontSize: 12, color: gold, letterSpacing: '.35em', marginBottom: 16 }}>CONFIRMED</div>
@@ -296,10 +325,11 @@ export default function BookPage({ params, searchParams }) {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: dark, padding: '0 0 60px' }}>
-      <div style={{ padding: '32px 24px', textAlign: 'center', borderBottom: `1px solid ${border}` }}>
-        <div style={{ fontFamily: fontDisplay, fontSize: 11, color: gold, letterSpacing: '.35em', marginBottom: 8 }}>SERVICEMIND</div>
-        <div style={{ fontFamily: fontBody, fontSize: 32, color: text, fontWeight: 300, lineHeight: 1.1 }}>{salon.shop_name}</div>
+    <div style={{ minHeight: '100vh', background: bgStyle, padding: '0 0 60px' }}>
+      <div style={{ padding: '36px 24px 32px', textAlign: 'center', borderBottom: `1px solid ${border}`, position: 'relative' }}>
+        {renderHeroAccent()}
+        <div style={{ fontFamily: fontDisplay, fontSize: 11, color: gold, letterSpacing: eyebrowSpacing, marginBottom: 10, textTransform: eyebrowTransform, fontWeight: 500 }}>SERVICEMIND</div>
+        <div style={{ fontFamily: fontBody, fontSize: 36, color: text, fontWeight: 300, lineHeight: 1.05, letterSpacing: tpl.fonts.body === 'Cormorant Garamond' ? '-0.01em' : '0' }}>{salon.shop_name}</div>
         <div style={{ fontSize: 12, color: muted, marginTop: 8 }}>{[salon.salon_type, salon.city, salon.state].filter(Boolean).join(' Â· ')}</div>
         {salon.phone && <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{salon.phone}</div>}
       </div>
