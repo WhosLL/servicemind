@@ -30,7 +30,8 @@ export default function TermsPage() {
         <p>Your bookings, clients, and business data belong to you. We don't sell your data. You can export your data at any time and permanently delete it on cancellation.</p>
 
         <h2 className="cinzel" style={{ fontSize: 14, letterSpacing: '.2em', color: 'var(--gold)', margin: '32px 0 12px' }}>6. SMS Communications</h2>
-        <p>ServiceMind sends transactional SMS (booking confirmations, reminders) to clients who book through your ServiceMind booking page. By using the service, you confirm you have the right to contact these clients per TCPA and applicable law. Clients can reply STOP to opt out at any time.</p>
+        <p>ServiceMind sends transactional SMS (booking confirmations, appointment reminders, missed-call replies) and — when the client has explicitly opted in — marketing SMS (win-back offers, birthday specials, promotions) to clients who book through your ServiceMind booking page. Each shop's SMS is sent from its own assigned phone number; the displayed sender is the shop, with ServiceMind as the underlying messaging platform. Msg &amp; data rates may apply. Msg frequency varies. Clients can reply STOP at any time to opt out, or HELP for assistance.</p>
+        <p style={{ marginTop: 12 }}>By using ServiceMind, you confirm you have the right to contact your booked clients per TCPA, the CTIA Messaging Principles &amp; Best Practices, and any other applicable law. You agree not to use ServiceMind to send SMS to any individual who has not consented through the booking-page opt-in flow or who has opted out.</p>
 
         <h2 className="cinzel" style={{ fontSize: 14, letterSpacing: '.2em', color: 'var(--gold)', margin: '32px 0 12px' }}>7. Acceptable Use</h2>
         <p>Don't use ServiceMind to send unsolicited marketing SMS, harass clients, or violate any law. We may suspend accounts that do.</p>

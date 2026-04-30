@@ -27,7 +27,8 @@ export default function PrivacyPage() {
         <p>Access your data anytime via your dashboard. Request deletion by canceling your account. Clients can request their booking data by contacting the shop they booked with, or us directly.</p>
 
         <h2 className="cinzel" style={{ fontSize: 14, letterSpacing: '.2em', color: 'var(--gold)', margin: '32px 0 12px' }}>SMS &amp; TCPA</h2>
-        <p>Clients who book through a ServiceMind booking page receive transactional SMS (confirmations, reminders) from that shop's assigned phone number. Reply STOP to opt out at any time. No marketing SMS is sent without explicit opt-in.</p>
+        <p>Clients who book through a ServiceMind booking page receive transactional SMS (confirmations, reminders) from that shop's assigned phone number. Marketing SMS (win-back offers, birthday specials, promotions) is only sent to clients who explicitly opt in via the booking-page consent checkbox. Reply STOP to opt out at any time, or HELP for assistance. Msg &amp; data rates may apply; msg frequency varies.</p>
+        <p style={{ marginTop: 12 }}><strong style={{ color: 'var(--text)' }}>We do not share opted-in mobile information with third parties or affiliates for marketing or promotional purposes.</strong> Mobile opt-in data and consent records are kept only for the purpose of delivering and managing the SMS service.</p>
 
         <h2 className="cinzel" style={{ fontSize: 14, letterSpacing: '.2em', color: 'var(--gold)', margin: '32px 0 12px' }}>Data retention</h2>
         <p>We retain your data for as long as your account is active. After cancellation, data is preserved for 30 days (for restore) then permanently deleted.</p>
