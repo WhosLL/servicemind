@@ -69,8 +69,8 @@ export async function POST(req) {
         service_name: service_name || '',
         booking_date: booking_date || '',
         time: time || '',
-        booking_link: `https://servicemind.vercel.app/book/${salon.slug}`,
-        review_link: `https://servicemind.vercel.app/book/${salon.slug}#review`,
+        booking_link: `https://servicemind.io/book/${salon.slug}`,
+        review_link: `https://servicemind.io/book/${salon.slug}#review`,
       })
 
       if (client_phone) {
@@ -111,8 +111,8 @@ export async function POST(req) {
           const personalMsg = fillTemplate(campaign.message_template, {
             client_name: client.name || 'there', shop_name: salon.shop_name || '', owner_name: salon.owner_name || '',
             service_name: '', booking_date: '', time: '',
-            booking_link: `https://servicemind.vercel.app/book/${salon.slug}`,
-            review_link: `https://servicemind.vercel.app/book/${salon.slug}#review`,
+            booking_link: `https://servicemind.io/book/${salon.slug}`,
+            review_link: `https://servicemind.io/book/${salon.slug}#review`,
           })
           const smsRes = await fetch(new URL('/api/send-sms', req.url).href, {
             method: 'POST',

@@ -329,7 +329,7 @@ export default function Onboard() {
         {createdSalon?.slug && (
           <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border)', padding: '16px 24px', marginBottom: 20, display: 'inline-block' }}>
             <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 6 }}>Your Booking Page</div>
-            <div style={{ fontSize: 14, color: 'var(--gold)', fontFamily: 'monospace' }}>servicemind.vercel.app/book/{createdSalon.slug}</div>
+            <div style={{ fontSize: 14, color: 'var(--gold)', fontFamily: 'monospace' }}>servicemind.io/book/{createdSalon.slug}</div>
           </div>
         )}
         <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9 }}>Opening your dashboard now...</p>

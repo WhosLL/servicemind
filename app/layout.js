@@ -3,11 +3,11 @@ import './globals.css'
 export const metadata = {
   title: 'ServiceMind — The AI Booking Platform Built for Barbers',
   description: 'Your own branded booking page, SMS confirmations, AI that fills slow days — all for $79/mo. First month free, no card required.',
-  metadataBase: new URL('https://servicemind.vercel.app'),
+  metadataBase: new URL('https://servicemind.io'),
   openGraph: {
     title: 'ServiceMind — The AI Booking Platform Built for Barbers',
     description: 'Your own branded booking page, SMS confirmations, AI that fills slow days. $79/mo. First month free, no card.',
-    url: 'https://servicemind.vercel.app',
+    url: 'https://servicemind.io',
     siteName: 'ServiceMind',
     type: 'website',
   },

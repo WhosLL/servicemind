@@ -979,7 +979,7 @@ export default function Dashboard() {
                   Share this with clients. Replace CLIENT_PHONE with their number to track referrals.
                 </div>
                 <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '14px 18px', fontSize: 13, color: 'var(--gold)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                  servicemind.vercel.app/book/{salon.slug}?ref=CLIENT_PHONE
+                  servicemind.io/book/{salon.slug}?ref=CLIENT_PHONE
                 </div>
               </div>
 
