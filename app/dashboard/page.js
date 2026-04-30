@@ -106,6 +106,9 @@ export default function Dashboard() {
   const [googleReviewSaving, setGoogleReviewSaving] = useState(false)
   const [templateId, setTemplateId] = useState('luxury')
   const [templateSaving, setTemplateSaving] = useState(false)
+  const [heroImageUrl, setHeroImageUrl] = useState('')
+  const [instagramHandle, setInstagramHandle] = useState('')
+  const [personalizeSaving, setPersonalizeSaving] = useState(false)
 
   useEffect(() => { if (salon?.id) load() }, [salon?.id])
 
@@ -132,6 +135,8 @@ export default function Dashboard() {
       setPersonalPhone(salon.personal_phone || '')
       setGoogleReviewUrl(salon.google_review_url || '')
       setTemplateId(salon.template_id || 'luxury')
+      setHeroImageUrl(salon.hero_image_url || '')
+      setInstagramHandle(salon.instagram || '')
       setMissedCallTextBack(salon.missed_call_text_back || false)
       setMissedCallAutoText(salon.missed_call_auto_text || "Hey! Sorry I missed your call. I'm with a client right now. Book your appointment here: {{booking_link}}")
       // Load SMS log
@@ -1303,6 +1308,48 @@ export default function Dashboard() {
                     Preview Live Page →
                   </a>
                 </div>
+              </div>
+
+              {/* Personalize — hero image override + Instagram link */}
+              <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Personalize</div>
+                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
+                  Make it <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>yours.</em>
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 24 }}>
+                  Override the template's default scene with a real photo of your shop. Link your Instagram so clients can follow you. Both optional.
+                </p>
+                <div style={{ marginBottom: 20 }}>
+                  <FieldLabel>Shop Photo URL</FieldLabel>
+                  <input className="input" placeholder="https://example.com/shop-photo.jpg"
+                    value={heroImageUrl} onChange={e => setHeroImageUrl(e.target.value)} />
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
+                    Paste a direct image URL. Replaces the template's scene with this photo. Best at 1920×1080 or wider. Use Imgur, Cloudinary, or any public image host.
+                  </div>
+                </div>
+                <div style={{ marginBottom: 24 }}>
+                  <FieldLabel>Instagram Handle</FieldLabel>
+                  <input className="input" placeholder="@yourshop"
+                    value={instagramHandle} onChange={e => setInstagramHandle(e.target.value)} />
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
+                    Just the handle, with or without the @. We'll show a "Follow on Instagram" button on your booking page.
+                  </div>
+                </div>
+                <button onClick={async () => {
+                  setPersonalizeSaving(true)
+                  try {
+                    const heroVal = heroImageUrl.trim() || null
+                    const igVal = instagramHandle.trim() || null
+                    await sb().from('salons').update({ hero_image_url: heroVal, instagram: igVal }).eq('id', salon.id)
+                    setSalon(s => ({ ...s, hero_image_url: heroVal, instagram: igVal }))
+                    alert('Saved! Refresh your booking page to see the change.')
+                  } catch (e) { alert('Error: ' + e.message) }
+                  setPersonalizeSaving(false)
+                }} disabled={personalizeSaving}
+                  className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: personalizeSaving ? .5 : 1 }}>
+                  {personalizeSaving ? 'Saving...' : 'Save Personalization'}
+                </button>
               </div>
 
               <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>

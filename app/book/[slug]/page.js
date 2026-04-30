@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { getTemplate, heroAccentDef } from '../../../lib/templates'
+import { getTemplate } from '../../../lib/templates'
 import '../../globals.css'
 
 const supabase = createClient(
@@ -80,28 +80,162 @@ export default function BookPage({ params, searchParams }) {
   const bgStyle = (dec.bgPattern && dec.bgPattern !== 'none')
     ? `${dec.bgPattern}, ${dec.bgGradient || dark}`
     : (dec.bgGradient || dark)
-  const renderHeroAccent = () => {
-    const def = heroAccentDef(dec.heroAccent?.type, gold)
-    if (!def) return null
-    switch (def.type) {
-      case 'gold-line':
-        return <div style={{ height: def.height, width: def.width, background: def.color, opacity: def.opacity, margin: '0 auto 14px' }} />
-      case 'barber-pole':
-        return <div style={{ height: def.height, width: 96, background: def.gradient, margin: '0 auto 14px', borderRadius: 1 }} />
-      case 'lime-bars':
+  const accentSecondary = tc.accentSecondary || gold
+  const renderTemplateScene = () => {
+    switch (dec.scene) {
+      case 'beach':
         return (
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 16 }}>
-            {Array.from({ length: def.count }).map((_, i) => <div key={i} style={{ width: 28, height: def.height, background: def.color }} />)}
-          </div>
+          <>
+            <svg viewBox="0 0 1440 240" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+              <defs>
+                <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fdcfae" />
+                  <stop offset="100%" stopColor="#b6dfe8" />
+                </linearGradient>
+              </defs>
+              <rect width="1440" height="240" fill="url(#sky-grad)" />
+              <circle cx="1140" cy="90" r="46" fill="#ffd180" opacity="0.95" />
+              <circle cx="1140" cy="90" r="68" fill="#ffd180" opacity="0.18" />
+            </svg>
+            <svg viewBox="0 0 1440 80" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 80 }}>
+              <path d="M0,40 C360,80 720,0 1080,30 C1260,45 1380,20 1440,30 L1440,80 L0,80 Z" fill={accentSecondary} opacity="0.6" />
+              <path d="M0,55 C300,80 720,30 1080,52 C1260,62 1380,45 1440,55 L1440,80 L0,80 Z" fill={gold} />
+            </svg>
+            {/* seashells */}
+            <svg style={{ position: 'absolute', bottom: 18, left: '12%', opacity: 0.4 }} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={accentSecondary} strokeWidth="0.8">
+              <path d="M12 3 C8 7 6 13 12 22 C18 13 16 7 12 3 Z" />
+              <path d="M12 7 L12 22 M9 11 L15 11 M8 15 L16 15" />
+            </svg>
+            <svg style={{ position: 'absolute', bottom: 12, right: '15%', opacity: 0.35 }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accentSecondary} strokeWidth="0.8">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 3 L12 21 M3 12 L21 12 M5 5 L19 19 M19 5 L5 19" />
+            </svg>
+          </>
         )
-      case 'thin-line':
-        return <div style={{ height: def.height, width: def.width, background: def.color, opacity: def.opacity, margin: '0 auto 12px' }} />
-      case 'orange-circle':
-        return <div style={{ width: def.size, height: def.size, borderRadius: '50%', background: def.color, margin: '0 auto 14px' }} />
+      case 'mountain':
+        return (
+          <svg viewBox="0 0 1440 240" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '100%' }}>
+            <defs>
+              <linearGradient id="mtn-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#2d4f4f" />
+                <stop offset="100%" stopColor="#1f3838" />
+              </linearGradient>
+            </defs>
+            <rect width="1440" height="240" fill="url(#mtn-sky)" />
+            {/* stars */}
+            <circle cx="200" cy="40" r="1" fill="#dde8e3" opacity="0.6" />
+            <circle cx="500" cy="30" r="1.2" fill="#dde8e3" opacity="0.7" />
+            <circle cx="900" cy="50" r="0.9" fill="#dde8e3" opacity="0.5" />
+            <circle cx="1200" cy="35" r="1" fill="#dde8e3" opacity="0.6" />
+            {/* far peaks */}
+            <polygon points="0,240 220,120 420,200 620,80 820,180 1020,100 1220,210 1440,140 1440,240" fill="#1a2e2e" />
+            {/* close peaks */}
+            <polygon points="0,240 280,160 540,210 800,130 1060,200 1320,150 1440,200 1440,240" fill="#0d1c1c" />
+            {/* snow caps */}
+            <polygon points="220,120 248,140 192,140" fill="#dde8e3" opacity="0.85" />
+            <polygon points="620,80 656,108 584,108" fill="#dde8e3" opacity="0.9" />
+            <polygon points="1020,100 1052,124 988,124" fill="#dde8e3" opacity="0.85" />
+            {/* pine silhouettes */}
+            <polygon points="80,240 60,210 100,210" fill="#0a1414" />
+            <polygon points="120,240 105,215 135,215" fill="#0a1414" />
+            <polygon points="1380,240 1360,210 1400,210" fill="#0a1414" />
+            <polygon points="1340,240 1325,215 1355,215" fill="#0a1414" />
+          </svg>
+        )
+      case 'skyline':
+        return (
+          <>
+            <svg viewBox="0 0 1440 120" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 120 }}>
+              {/* back layer */}
+              <g fill="#141414">
+                <rect x="0" y="50" width="100" height="70" />
+                <rect x="100" y="30" width="80" height="90" />
+                <rect x="180" y="60" width="120" height="60" />
+                <rect x="300" y="10" width="80" height="110" />
+                <rect x="380" y="40" width="100" height="80" />
+                <rect x="480" y="20" width="120" height="100" />
+                <rect x="600" y="50" width="80" height="70" />
+                <rect x="680" y="30" width="100" height="90" />
+                <rect x="780" y="0" width="60" height="120" />
+                <rect x="840" y="40" width="100" height="80" />
+                <rect x="940" y="60" width="120" height="60" />
+                <rect x="1060" y="20" width="80" height="100" />
+                <rect x="1140" y="50" width="100" height="70" />
+                <rect x="1240" y="30" width="120" height="90" />
+                <rect x="1360" y="50" width="80" height="70" />
+              </g>
+              {/* lit windows */}
+              <g fill={gold} opacity="0.85">
+                <rect x="120" y="50" width="3" height="4" />
+                <rect x="135" y="60" width="3" height="4" />
+                <rect x="150" y="50" width="3" height="4" />
+                <rect x="320" y="30" width="3" height="4" />
+                <rect x="340" y="50" width="3" height="4" />
+                <rect x="360" y="40" width="3" height="4" />
+                <rect x="500" y="40" width="3" height="4" />
+                <rect x="540" y="60" width="3" height="4" />
+                <rect x="700" y="50" width="3" height="4" />
+                <rect x="800" y="20" width="3" height="4" />
+                <rect x="820" y="40" width="3" height="4" />
+                <rect x="860" y="60" width="3" height="4" />
+                <rect x="1080" y="40" width="3" height="4" />
+                <rect x="1100" y="60" width="3" height="4" />
+                <rect x="1260" y="50" width="3" height="4" />
+                <rect x="1280" y="70" width="3" height="4" />
+                <rect x="1300" y="50" width="3" height="4" />
+              </g>
+            </svg>
+            {/* pink/cyan accent glow */}
+            <div style={{ position: 'absolute', top: 0, right: '-200px', width: 400, height: 200, background: `radial-gradient(circle, ${accentSecondary} 0%, transparent 70%)`, opacity: 0.2, pointerEvents: 'none' }} />
+          </>
+        )
+      case 'barbershop':
+        return (
+          <>
+            <svg style={{ position: 'absolute', top: 24, left: '8%', opacity: 0.18 }} width="44" height="44" viewBox="0 0 24 24" fill="none" stroke={gold} strokeWidth="1.2">
+              <circle cx="6" cy="6" r="2.8" />
+              <circle cx="6" cy="18" r="2.8" />
+              <line x1="9" y1="9" x2="22" y2="22" />
+              <line x1="9" y1="15" x2="22" y2="2" />
+            </svg>
+            <svg style={{ position: 'absolute', top: 24, right: '8%', opacity: 0.18 }} width="44" height="44" viewBox="0 0 24 24" fill="none" stroke={gold} strokeWidth="1.2">
+              <rect x="3" y="3" width="18" height="3" />
+              <line x1="6" y1="6" x2="6" y2="22" />
+              <line x1="9" y1="6" x2="9" y2="20" />
+              <line x1="12" y1="6" x2="12" y2="22" />
+              <line x1="15" y1="6" x2="15" y2="20" />
+              <line x1="18" y1="6" x2="18" y2="22" />
+            </svg>
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 6, background: 'repeating-linear-gradient(45deg, #c83028 0px, #c83028 10px, #f4e4c8 10px, #f4e4c8 20px, #1e3a8a 20px, #1e3a8a 30px, #f4e4c8 30px, #f4e4c8 40px)' }} />
+          </>
+        )
+      case 'art_deco':
+        return (
+          <>
+            <svg style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', opacity: 0.5 }} width="120" height="40" viewBox="0 0 120 40" fill="none" stroke={gold} strokeWidth="0.8">
+              <path d="M0,40 Q60,0 120,40" />
+              <path d="M15,40 Q60,12 105,40" />
+              <path d="M30,40 Q60,22 90,40" />
+              <circle cx="60" cy="32" r="1.2" fill={gold} />
+            </svg>
+            <svg style={{ position: 'absolute', bottom: 18, left: '50%', transform: 'translateX(-50%)', opacity: 0.4 }} width="80" height="20" viewBox="0 0 80 20" fill="none" stroke={gold} strokeWidth="0.8">
+              <path d="M0,10 L20,10 M60,10 L80,10" />
+              <path d="M30,4 L40,16 L50,4" />
+            </svg>
+          </>
+        )
       default:
         return null
     }
   }
+  const igUsername = (() => {
+    if (!salon?.instagram) return null
+    return salon.instagram
+      .replace(/^@/, '')
+      .replace(/^https?:\/\/(www\.)?instagram\.com\//, '')
+      .replace(/^instagram\.com\//, '')
+      .split(/[/?#]/)[0] || null
+  })()
 
   useEffect(() => {
     const load = async () => {
@@ -326,12 +460,32 @@ export default function BookPage({ params, searchParams }) {
 
   return (
     <div style={{ minHeight: '100vh', background: bgStyle, padding: '0 0 60px' }}>
-      <div style={{ padding: '36px 24px 32px', textAlign: 'center', borderBottom: `1px solid ${border}`, position: 'relative' }}>
-        {renderHeroAccent()}
-        <div style={{ fontFamily: fontDisplay, fontSize: 11, color: gold, letterSpacing: eyebrowSpacing, marginBottom: 10, textTransform: eyebrowTransform, fontWeight: 500 }}>SERVICEMIND</div>
-        <div style={{ fontFamily: fontBody, fontSize: 36, color: text, fontWeight: 300, lineHeight: 1.05, letterSpacing: tpl.fonts.body === 'Cormorant Garamond' ? '-0.01em' : '0' }}>{salon.shop_name}</div>
-        <div style={{ fontSize: 12, color: muted, marginTop: 8 }}>{[salon.salon_type, salon.city, salon.state].filter(Boolean).join(' Â· ')}</div>
-        {salon.phone && <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{salon.phone}</div>}
+      <div style={{ position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${border}`, minHeight: 260 }}>
+        {salon.hero_image_url ? (
+          <>
+            <img src={salon.hero_image_url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+            <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 60%, ${dark} 100%)` }} />
+          </>
+        ) : (
+          renderTemplateScene()
+        )}
+        <div style={{ position: 'relative', zIndex: 2, padding: '60px 24px 36px', textAlign: 'center' }}>
+          <div style={{ fontFamily: fontDisplay, fontSize: 11, color: gold, letterSpacing: eyebrowSpacing, marginBottom: 12, textTransform: eyebrowTransform, fontWeight: 500 }}>SERVICEMIND</div>
+          <div style={{ fontFamily: fontBody, fontSize: 40, color: text, fontWeight: 300, lineHeight: 1.05, letterSpacing: tpl.fonts.body === 'Cormorant Garamond' ? '-0.01em' : '0' }}>{salon.shop_name}</div>
+          <div style={{ fontSize: 12, color: muted, marginTop: 10 }}>{[salon.salon_type, salon.city, salon.state].filter(Boolean).join(' · ')}</div>
+          {salon.phone && <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{salon.phone}</div>}
+          {igUsername && (
+            <a href={`https://instagram.com/${igUsername}`} target="_blank" rel="noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 18, padding: '7px 16px', border: `1px solid ${gold}`, color: gold, fontSize: 11, letterSpacing: '.15em', textDecoration: 'none', fontFamily: fontUi, textTransform: 'uppercase' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="3" y="3" width="18" height="18" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+              </svg>
+              @{igUsername}
+            </a>
+          )}
+        </div>
       </div>
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 20px' }}>
