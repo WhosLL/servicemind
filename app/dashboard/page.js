@@ -101,6 +101,8 @@ export default function Dashboard() {
   const [missedCallTextBack, setMissedCallTextBack] = useState(false)
   const [missedCallAutoText, setMissedCallAutoText] = useState('')
   const [callSettingsSaving, setCallSettingsSaving] = useState(false)
+  const [googleReviewUrl, setGoogleReviewUrl] = useState('')
+  const [googleReviewSaving, setGoogleReviewSaving] = useState(false)
 
   useEffect(() => { if (salon?.id) load() }, [salon?.id])
 
@@ -125,6 +127,7 @@ export default function Dashboard() {
       }
       setCallTier(salon.call_handling_tier || 'ai_text_back')
       setPersonalPhone(salon.personal_phone || '')
+      setGoogleReviewUrl(salon.google_review_url || '')
       setMissedCallTextBack(salon.missed_call_text_back || false)
       setMissedCallAutoText(salon.missed_call_auto_text || "Hey! Sorry I missed your call. I'm with a client right now. Book your appointment here: {{booking_link}}")
       // Load SMS log
@@ -547,6 +550,17 @@ export default function Dashboard() {
           {/* ==================== OVERVIEW ==================== */}
           {!loading && tab === 'overview' && (
             <div>
+              {!salon.google_review_url && (
+                <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.4)', padding: '18px 22px', marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 500, marginBottom: 4 }}>Review collection is OFF</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                      Set up your Google Business Profile and add your review link in Settings → Google Reviews to start collecting customer reviews automatically after every appointment.
+                    </div>
+                  </div>
+                  <button onClick={() => setTab('settings')} className="btn-gold" style={{ padding: '10px 20px', fontSize: 11, whiteSpace: 'nowrap' }}>Set Up</button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 2, marginBottom: 44 }}>
                 <Stat label="Today's Appointments" value={todayAppts.length} sub={`${appointments.length} total all time`} />
                 <Stat label="Total Clients" value={clients.length} sub="in your database" />
@@ -1356,6 +1370,47 @@ export default function Dashboard() {
                   className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: callSettingsSaving ? .5 : 1 }}>
                   {callSettingsSaving ? 'Saving...' : 'Save Call Settings'}
                 </button>
+              </div>
+
+              {/* Google Reviews */}
+              <div className="card-gold" style={{ padding: '36px', marginBottom: 20, position: 'relative' }}>
+                <div className="gold-line-top" />
+                <div className="eyebrow" style={{ marginBottom: 20 }}>Google Reviews</div>
+                <h3 className="cormorant" style={{ fontSize: 32, fontWeight: 300, marginBottom: 8 }}>
+                  Collect <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>5-star reviews</em> automatically.
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 20 }}>
+                  After every appointment, ServiceMind asks the client to rate their visit. Happy clients (4-5 stars) are nudged to share on Google. Unhappy clients (1-3 stars) give private feedback only — no bad reviews on Google.
+                </p>
+                <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-dim)', padding: 16, marginBottom: 20, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>
+                  <div style={{ color: 'var(--gold)', fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: 8 }}>How to get your review link</div>
+                  <div style={{ marginBottom: 6 }}>1. Have a <a href="https://www.google.com/business/" target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>Google Business Profile</a> set up for your shop. (Free, ~10 min if you don't have one.)</div>
+                  <div style={{ marginBottom: 6 }}>2. In your Google Business Profile manager, click "Get more reviews" → copy the link Google generates.</div>
+                  <div>3. Paste it below and save. Review collection auto-activates.</div>
+                </div>
+                <FieldLabel>Google Review Link</FieldLabel>
+                <input className="input" placeholder="https://g.page/r/CXXXXXXXXX/review"
+                  value={googleReviewUrl} onChange={e => setGoogleReviewUrl(e.target.value)}
+                  style={{ marginBottom: 20 }} />
+                <button onClick={async () => {
+                  setGoogleReviewSaving(true)
+                  try {
+                    const trimmed = googleReviewUrl.trim() || null
+                    await sb().from('salons').update({ google_review_url: trimmed }).eq('id', salon.id)
+                    await sb().from('salon_campaigns').update({ is_active: !!trimmed }).eq('salon_id', salon.id).eq('campaign_type', 'review_request')
+                    setSalon(s => ({ ...s, google_review_url: trimmed }))
+                    alert(trimmed ? 'Saved! Review collection is now ON. Reviews will be requested 1 day after each appointment.' : 'Saved. Review collection is OFF.')
+                  } catch (e) { alert('Error: ' + e.message) }
+                  setGoogleReviewSaving(false)
+                }} disabled={googleReviewSaving}
+                  className="btn-gold" style={{ padding: '14px 32px', fontSize: 11, opacity: googleReviewSaving ? .5 : 1 }}>
+                  {googleReviewSaving ? 'Saving...' : (googleReviewUrl.trim() ? 'Save & Enable Reviews' : 'Save')}
+                </button>
+                {salon.google_review_url && (
+                  <div style={{ marginTop: 16, fontSize: 12, color: 'var(--green, #4cc94c)' }}>
+                    ✓ Review collection is ON — clients receive a review request 1 day after their appointment
+                  </div>
+                )}
               </div>
 
               {/* SMS Setup */}

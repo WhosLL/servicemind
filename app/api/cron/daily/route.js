@@ -45,7 +45,7 @@ export async function GET(req) {
     const sb = getSb()
     const { data: salons } = await sb
       .from('salons')
-      .select('id, slug, shop_name, twilio_phone_number, subscription_status')
+      .select('id, slug, shop_name, twilio_phone_number, google_review_url, subscription_status')
       .in('subscription_status', ['active', 'trial', 'trialing'])
 
     const summary = { salons_processed: 0, salons_skipped: 0, win_back: 0, reminder_24h: 0, errors: [] }
@@ -81,6 +81,46 @@ export async function GET(req) {
             .eq('salon_id', salon.id).eq('campaign_type', trigger_type).eq('run_date', todayDate)
         } else if (r.error) {
           summary.errors.push({ salon: salon.id, trigger_type, error: r.error })
+        }
+      }
+
+      // Review requests — fire only for salons with google_review_url configured AND review_request campaign active.
+      // Targets confirmed appointments from yesterday (in salon-local TZ).
+      if (salon.google_review_url) {
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const yesterdayDate = localDateInTZ(yesterday, tz)
+
+        const { data: reviewAppts } = await sb
+          .from('salon_appointments')
+          .select('id, client_name, client_phone, service_name, appointment_date, appointment_time')
+          .eq('salon_id', salon.id)
+          .eq('appointment_date', yesterdayDate)
+          .eq('status', 'confirmed')
+          .is('review_request_sent_at', null)
+
+        for (const appt of reviewAppts || []) {
+          if (!appt.client_phone) continue
+
+          const { data: claimed } = await sb
+            .from('salon_appointments')
+            .update({ review_request_sent_at: new Date().toISOString() })
+            .eq('id', appt.id)
+            .is('review_request_sent_at', null)
+            .select('id')
+          if (!claimed?.length) continue
+
+          const r = await callTriggerAutomation(req, {
+            salon_id: salon.id,
+            trigger_type: 'review_request',
+            client_phone: appt.client_phone,
+            client_name: appt.client_name,
+            service_name: appt.service_name,
+            booking_date: appt.appointment_date,
+            time: appt.appointment_time,
+            appointment_id: appt.id
+          })
+          if (r.success) summary.review_request = (summary.review_request || 0) + (r.sent || 0)
+          else if (r.error) summary.errors.push({ salon: salon.id, appt: appt.id, trigger_type: 'review_request', error: r.error })
         }
       }
 

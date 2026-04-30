@@ -23,7 +23,7 @@ export async function POST(req) {
   try {
     const sb = getSb()
     const body = await req.json()
-    const { salon_id, trigger_type, client_phone, client_name, service_name, booking_date, time } = body
+    const { salon_id, trigger_type, client_phone, client_name, service_name, booking_date, time, appointment_id } = body
 
     if (!salon_id || !trigger_type) {
       return Response.json({ error: 'Missing salon_id or trigger_type' }, { status: 400 })
@@ -70,7 +70,7 @@ export async function POST(req) {
         booking_date: booking_date || '',
         time: time || '',
         booking_link: `https://servicemind.io/book/${salon.slug}`,
-        review_link: `https://servicemind.io/book/${salon.slug}#review`,
+        review_link: appointment_id ? `https://servicemind.io/review/${appointment_id}` : `https://servicemind.io/book/${salon.slug}#review`,
       })
 
       if (client_phone) {
@@ -107,7 +107,7 @@ export async function POST(req) {
             client_name: client.name || 'there', shop_name: salon.shop_name || '', owner_name: salon.owner_name || '',
             service_name: '', booking_date: '', time: '',
             booking_link: `https://servicemind.io/book/${salon.slug}`,
-            review_link: `https://servicemind.io/book/${salon.slug}#review`,
+            review_link: appointment_id ? `https://servicemind.io/review/${appointment_id}` : `https://servicemind.io/book/${salon.slug}#review`,
           })
           const smsRes = await fetch(new URL('/api/send-sms', req.url).href, {
             method: 'POST',
