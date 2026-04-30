@@ -17,7 +17,6 @@ const DEFAULT_CAMPAIGNS = (id) => [
   { salon_id: id, campaign_type: 'reminder_1h', name: 'Appointment Reminder (1hr)', is_active: true, message_template: "See you soon! Your appointment at {{shop_name}} starts in 1 hour at {{time}}." },
   { salon_id: id, campaign_type: 'review_request', name: 'Post-Appointment Review', is_active: true, message_template: "Thanks for coming in! Mind leaving us a quick review? {{review_link}}" },
   { salon_id: id, campaign_type: 'win_back', name: 'Win-Back (45 Days)', is_active: true, message_template: "{{shop_name}}: We miss you! Come back this week and save 10%: {{booking_link}} Reply STOP to opt out." },
-  { salon_id: id, campaign_type: 'birthday', name: 'Birthday Special', is_active: true, message_template: "{{shop_name}}: Happy Birthday! $5 off your next visit this month: {{booking_link}} Reply STOP to opt out." },
   { salon_id: id, campaign_type: 'slow_day', name: 'Slow Day Blast', is_active: false, message_template: "{{shop_name}}: Spots just opened today! Book now: {{booking_link}} Reply STOP to opt out." },
   { salon_id: id, campaign_type: 'no_show', name: 'No-Show Follow-up', is_active: true, message_template: "{{shop_name}}: You missed your appointment — no worries! Rebook anytime: {{booking_link}}" },
 ]

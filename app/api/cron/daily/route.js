@@ -48,7 +48,7 @@ export async function GET(req) {
       .select('id, slug, shop_name, twilio_phone_number, subscription_status')
       .in('subscription_status', ['active', 'trial', 'trialing'])
 
-    const summary = { salons_processed: 0, salons_skipped: 0, win_back: 0, birthday: 0, reminder_24h: 0, errors: [] }
+    const summary = { salons_processed: 0, salons_skipped: 0, win_back: 0, reminder_24h: 0, errors: [] }
     const tz = SALON_TZ_DEFAULT
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
     const tomorrowDate = localDateInTZ(tomorrow, tz)
@@ -64,7 +64,8 @@ export async function GET(req) {
 
       // Broadcast triggers — guard each one with campaign_runs to prevent same-day re-fires on cron retries.
       // slow_day removed: it currently fires unconditionally; needs real slow-day detection logic before re-enabling.
-      for (const trigger_type of ['win_back', 'birthday']) {
+      // birthday removed: barber doesn't have access to client birthday data, so the campaign would never match anyone.
+      for (const trigger_type of ['win_back']) {
         const { error: claimErr } = await sb
           .from('campaign_runs')
           .insert([{ salon_id: salon.id, campaign_type: trigger_type, run_date: todayDate }])
