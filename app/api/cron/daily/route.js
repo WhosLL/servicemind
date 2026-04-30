@@ -84,6 +84,53 @@ export async function GET(req) {
         }
       }
 
+      // Slow-day detection — only fires when today's confirmed bookings run below the salon's typical day-of-week pace.
+      // Threshold: today < 50% of 4-week historical average for same DOW; require avg >= 3 to filter out new/quiet shops.
+      try {
+        const todayDate = localDateInTZ(new Date(), tz)
+        const todayDow = new Date(todayDate + 'T12:00:00Z').getUTCDay()
+        const fourWeeksAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+        const { count: todayCount } = await sb
+          .from('salon_appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('salon_id', salon.id)
+          .eq('appointment_date', todayDate)
+          .eq('status', 'confirmed')
+
+        const { data: historicalAppts } = await sb
+          .from('salon_appointments')
+          .select('appointment_date')
+          .eq('salon_id', salon.id)
+          .eq('status', 'confirmed')
+          .gte('appointment_date', fourWeeksAgo)
+          .lt('appointment_date', todayDate)
+
+        const byDate = {}
+        for (const a of historicalAppts || []) {
+          const d = new Date(a.appointment_date + 'T12:00:00Z')
+          if (d.getUTCDay() !== todayDow) continue
+          byDate[a.appointment_date] = (byDate[a.appointment_date] || 0) + 1
+        }
+        const counts = Object.values(byDate)
+        const avg = counts.length > 0 ? counts.reduce((s, n) => s + n, 0) / counts.length : 0
+
+        if (avg >= 3 && (todayCount || 0) < avg * 0.5) {
+          const { error: claimErr } = await sb
+            .from('campaign_runs')
+            .insert([{ salon_id: salon.id, campaign_type: 'slow_day', run_date: todayDate }])
+          if (!claimErr) {
+            const r = await callTriggerAutomation(req, { salon_id: salon.id, trigger_type: 'slow_day' })
+            if (r.success) summary.slow_day = (summary.slow_day || 0) + (r.sent || 0)
+            else if (r.error) summary.errors.push({ salon: salon.id, trigger_type: 'slow_day', error: r.error })
+          } else if (claimErr.code !== '23505') {
+            summary.errors.push({ salon: salon.id, trigger_type: 'slow_day', error: claimErr.message })
+          }
+        }
+      } catch (slowErr) {
+        summary.errors.push({ salon: salon.id, trigger_type: 'slow_day', error: slowErr.message || 'detection failed' })
+      }
+
       // Review requests — fire only for salons with google_review_url configured AND review_request campaign active.
       // Targets confirmed appointments from yesterday (in salon-local TZ).
       if (salon.google_review_url) {

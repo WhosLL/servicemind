@@ -98,8 +98,24 @@ export async function POST(req) {
           const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).lt('last_visit_at', cutoff).not('phone', 'is', null).is('sms_opted_out_at', null)
           clients = data || []
         } else if (trigger_type === 'slow_day') {
-          const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).not('phone', 'is', null).is('sms_opted_out_at', null).limit(50)
-          clients = data || []
+          // Active clients (booked in last 90 days), opted-in, with phone, who don't already have an appointment today.
+          const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+          const today = new Date().toISOString().slice(0, 10)
+          const { data: todayBookings } = await sb
+            .from('salon_appointments')
+            .select('client_phone')
+            .eq('salon_id', salon_id)
+            .eq('appointment_date', today)
+            .eq('status', 'confirmed')
+          const phonesBookedToday = new Set((todayBookings || []).map(a => a.client_phone).filter(Boolean))
+          const { data } = await sb.from('clients').select('*')
+            .eq('salon_id', salon_id)
+            .not('phone', 'is', null)
+            .is('sms_opted_out_at', null)
+            .gte('last_visit_at', ninetyDaysAgo)
+            .order('last_visit_at', { ascending: false })
+            .limit(50)
+          clients = (data || []).filter(c => !phonesBookedToday.has(c.phone))
         }
 
         for (const client of clients) {
