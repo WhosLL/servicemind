@@ -31,6 +31,15 @@ export async function POST(req) {
       return Response.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
+    if (typeof password !== 'string' || password.length < 8) {
+      return Response.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
+    }
+
+    // Basic email shape check (Supabase will also validate, but cheap to fail fast)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return Response.json({ error: 'Please enter a valid email address.' }, { status: 400 })
+    }
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,

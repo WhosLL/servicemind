@@ -18,7 +18,11 @@ export default function LoginPage() {
     setLoading(true); setErr('')
     const { error } = await sb().auth.signInWithPassword({ email, password })
     if (error) {
-      setErr('Invalid email or password.')
+      const msg = error.message || ''
+      if (/email not confirmed/i.test(msg)) setErr('Check your email and click the verification link before signing in.')
+      else if (/invalid|incorrect/i.test(msg)) setErr('Email or password is incorrect.')
+      else if (/rate|too many/i.test(msg)) setErr('Too many attempts. Wait a minute and try again.')
+      else setErr(msg || 'Could not sign in. Try again.')
       setLoading(false)
     } else {
       router.push('/dashboard')
@@ -43,10 +47,14 @@ export default function LoginPage() {
             <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>Password</label>
             <input ref={passRef} className="input" type="password" placeholder="Your password" defaultValue="" onKeyDown={e => e.key === 'Enter' && go()} autoComplete="current-password" />
           </div>
-          {err && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 16 }}>{err}</div>}
+          {err && <div style={{ fontSize: 12, color: '#ff7070', marginBottom: 16 }}>{err}</div>}
           <button onClick={go} disabled={loading} className="btn-gold" style={{ width: '100%', textAlign: 'center', padding: '16px', opacity: loading ? .6 : 1 }}>
             {loading ? 'Logging in...' : 'Enter Dashboard →'}
           </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 18, fontSize: 11 }}>
+            <a href="/forgot-password" style={{ color: 'var(--muted)', textDecoration: 'none', borderBottom: '1px solid var(--border-dim)', paddingBottom: 1 }}>Forgot password?</a>
+            <a href="/onboard" style={{ color: 'var(--gold)', textDecoration: 'none' }}>New shop? Sign up →</a>
+          </div>
         </div>
       </div>
     </div>
