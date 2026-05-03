@@ -179,7 +179,7 @@ export default function Onboard() {
       }}
       canNext={!!info.shop_name}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {[['Shop Name *', 'shop_name', 'e.g. Boo Cutz'], ['Owner Name *', 'owner_name', 'e.g. Brandon McCoy'], ['Phone *', 'phone', '(404) 000-0000'], ['Email *', 'email', 'you@shop.com']].map(([label, key, ph]) => (
+        {[['Shop Name *', 'shop_name', 'Your shop name'], ['Owner Name *', 'owner_name', 'Your full name'], ['Phone *', 'phone', '(555) 000-0000'], ['Email *', 'email', 'you@example.com']].map(([label, key, ph]) => (
           <div key={key}>
             <FL>{label}</FL>
             <input className="input" placeholder={ph} value={info[key]} onChange={e => set(key, e.target.value)} type={key === 'email' ? 'email' : 'text'} autoComplete={key === 'email' ? 'email' : 'off'} />
@@ -200,7 +200,7 @@ export default function Onboard() {
           <FL>Address (optional)</FL>
           <input className="input" placeholder="123 Main Street" value={info.address} onChange={e => set('address', e.target.value)} />
         </div>
-        {[['City', 'city', 'Raleigh'], ['State', 'state', 'NC']].map(([label, key, ph]) => (
+        {[['City', 'city', 'Your city'], ['State', 'state', 'XX']].map(([label, key, ph]) => (
           <div key={key}>
             <FL>{label}</FL>
             <input className="input" placeholder={ph} value={info[key]} onChange={e => set(key, e.target.value)} />
@@ -215,8 +215,8 @@ export default function Onboard() {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, alignItems: 'center' }}>
       <input className="input" placeholder="Service name" value={item.name} onChange={e => updateSvc(list, setList, idx, 'name', e.target.value)} style={{ padding: '10px 12px', fontSize: 12 }} />
       <div style={{ position: 'relative' }}>
-        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--gold)', fontSize: 11, pointerEvents: 'none' }}>$</span>
-        <input className="input" type="number" placeholder="0" value={item.price} onChange={e => updateSvc(list, setList, idx, 'price', e.target.value)} style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
+        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: item.price ? 'var(--gold)' : 'var(--muted)', fontSize: 11, pointerEvents: 'none' }}>$</span>
+        <input className="input" type="number" placeholder="" value={item.price} onChange={e => updateSvc(list, setList, idx, 'price', e.target.value)} style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
       </div>
       <input className="input" type="number" placeholder="30" value={item.duration} onChange={e => updateSvc(list, setList, idx, 'duration', e.target.value)} style={{ padding: '10px 8px', fontSize: 12, textAlign: 'center' }} />
       <button onClick={() => removeSvc(list, setList, idx)} disabled={list.length === 1} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: list.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, opacity: list.length === 1 ? 0.2 : 0.5, padding: 0 }}>×</button>
@@ -226,7 +226,7 @@ export default function Onboard() {
   const SvcHeader = () => (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, padding: '0 2px 6px' }}>
       <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Service</span>
-      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Price</span>
+      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Price (opt)</span>
       <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Mins</span>
       <span />
     </div>

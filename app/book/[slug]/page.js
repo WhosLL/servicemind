@@ -416,7 +416,7 @@ export default function BookPage({ params, searchParams }) {
           <div style={{ fontSize: 16, color: text, marginBottom: 8 }}>{booked.serviceName}</div>
           <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>{new Date(booked.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
           <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>{booked.time}</div>
-          <div style={{ fontSize: 16, color: gold, marginTop: 12 }}>${booked.totalPrice}</div>
+          {booked.totalPrice > 0 && <div style={{ fontSize: 16, color: gold, marginTop: 12 }}>${booked.totalPrice}</div>}
         </div>
         <a href={booked.calUrl} target="_blank" rel="noreferrer"
           style={{ display: 'inline-block', padding: '14px 32px', border: `1px solid ${gold}`, color: gold, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', textDecoration: 'none', fontFamily: fontDisplay, marginBottom: 16 }}>
@@ -439,7 +439,7 @@ export default function BookPage({ params, searchParams }) {
             )}
             {selectedDate && <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>{formatDateShort(selectedDate)}{selectedTime ? ` at ${selectedTime}` : ''}</div>}
           </div>
-          <div style={{ color: gold, fontSize: 18, fontFamily: fontBody }}>${totalPrice}</div>
+          {totalPrice > 0 && <div style={{ color: gold, fontSize: 18, fontFamily: fontBody }}>${totalPrice}</div>}
         </div>
       </div>
     ) : null
@@ -504,7 +504,7 @@ export default function BookPage({ params, searchParams }) {
                       <div style={{ fontSize: 14, marginBottom: 3 }}>{svc.name}</div>
                       <div style={{ fontSize: 11, color: muted }}>{svc.duration_minutes} min{svc.description ? (' · ' + svc.description) : ''}</div>
                     </div>
-                    <div style={{ color: gold, fontSize: 16, fontFamily: fontBody, flexShrink: 0, marginLeft: 12 }}>${svc.price}</div>
+                    {svc.price > 0 && <div style={{ color: gold, fontSize: 16, fontFamily: fontBody, flexShrink: 0, marginLeft: 12 }}>${svc.price}</div>}
                   </button>
                 ))}
               </div>
@@ -529,7 +529,7 @@ export default function BookPage({ params, searchParams }) {
                     </div>
                     <div style={{ fontSize: 13 }}>{addon.name}</div>
                   </div>
-                  <div style={{ color: gold, fontSize: 14, flexShrink: 0 }}>+${addon.price}</div>
+                  {addon.price > 0 && <div style={{ color: gold, fontSize: 14, flexShrink: 0 }}>+${addon.price}</div>}
                 </button>
               )
             })}
