@@ -1,0 +1,14 @@
+# Normalize line endings on commit. Working-tree files keep platform-native endings,
+# but everything in the repo stays LF. Stops Windows editors from creating phantom
+# CRLF↔LF diffs across every file.
+* text=auto eol=lf
+
+# Binary files — never touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
