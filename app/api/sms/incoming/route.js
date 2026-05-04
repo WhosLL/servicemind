@@ -61,10 +61,20 @@ export async function POST(req) {
     const params = {}
     for (const [key, value] of formData.entries()) params[key] = value
 
+    // Twilio signs the URL it was configured to call, which can be either
+    // servicemind.vercel.app (per /api/provision-number) or servicemind.io
+    // (custom domain). Try the host the request actually arrived on first,
+    // then both known apex hosts as fallbacks.
     const signature = req.headers.get('x-twilio-signature')
-    const url = 'https://servicemind.io/api/sms/incoming'
-    if (signature && !validateTwilioSignature(TWILIO_TOKEN, signature, url, params)) {
-      return new Response('Forbidden', { status: 403 })
+    if (signature) {
+      const host = req.headers.get('host') || 'servicemind.vercel.app'
+      const candidateUrls = [
+        `https://${host}/api/sms/incoming`,
+        'https://servicemind.vercel.app/api/sms/incoming',
+        'https://servicemind.io/api/sms/incoming',
+      ]
+      const valid = candidateUrls.some(u => validateTwilioSignature(TWILIO_TOKEN, signature, u, params))
+      if (!valid) return new Response('Forbidden', { status: 403 })
     }
 
     const from = params.From
