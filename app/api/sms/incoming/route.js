@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { SMS_VA_TOOLS, executeTool } from '../../../../lib/sms-va-tools'
 
 let _sb
 function getSb() {
@@ -37,25 +38,31 @@ function checkSmsRate(phone) {
 
 function twimlResponse(message) {
   return new Response(
-    `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${message}</Message></Response>`,
+    `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escapeXml(message)}</Message></Response>`,
     { headers: { 'Content-Type': 'text/xml' } }
   )
+}
+
+function escapeXml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 export async function POST(req) {
   try {
     const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN
-    if (!TWILIO_TOKEN) {
-      return twimlResponse('System temporarily unavailable.')
-    }
+    if (!TWILIO_TOKEN) return twimlResponse('System temporarily unavailable.')
 
     const formData = await req.formData()
     const params = {}
     for (const [key, value] of formData.entries()) params[key] = value
 
-    // Validate Twilio signature
     const signature = req.headers.get('x-twilio-signature')
-    const url = 'https://servicemind.vercel.app/api/sms/incoming'
+    const url = 'https://servicemind.io/api/sms/incoming'
     if (signature && !validateTwilioSignature(TWILIO_TOKEN, signature, url, params)) {
       return new Response('Forbidden', { status: 403 })
     }
@@ -64,29 +71,20 @@ export async function POST(req) {
     const to = params.To
     const body = params.Body
 
-    if (!from || !body) {
-      return twimlResponse('Sorry, something went wrong.')
-    }
-
-    // Rate limit check
-    if (!checkSmsRate(from)) {
-      return twimlResponse('Too many messages. Please wait a moment.')
-    }
+    if (!from || !body) return twimlResponse('Sorry, something went wrong.')
+    if (!checkSmsRate(from)) return twimlResponse('Too many messages. Please wait a moment.')
 
     const sb = getSb()
 
     const { data: salon } = await sb
       .from('salons')
-      .select('id, shop_name, salon_type, city, state, owner_name, slug, hours, schedule_settings')
+      .select('id, shop_name, salon_type, city, state, owner_name, slug, hours, schedule_settings, twilio_phone_number, personal_phone')
       .eq('twilio_phone_number', to)
       .single()
 
-    if (!salon) {
-      return twimlResponse('This number is not currently active.')
-    }
+    if (!salon) return twimlResponse('This number is not currently active.')
 
     // Carrier-required keyword handling — runs before AI receptionist.
-    // STOP keywords opt the client out; HELP returns a help message; START re-subscribes.
     const normalized = body.trim().toUpperCase()
     const stopKeywords = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']
     const helpKeywords = ['HELP', 'INFO']
@@ -120,16 +118,7 @@ export async function POST(req) {
       return twimlResponse(`You're resubscribed to ${salon.shop_name}. Reply STOP at any time to opt out.`)
     }
 
-    const { data: services } = await sb
-      .from('salon_services')
-      .select('name, price, duration_minutes, category')
-      .eq('salon_id', salon.id)
-      .eq('is_active', true)
-      .order('sort_order')
-
-    const coreList = (services || []).filter(s => s.category !== 'addon').map(s => `${s.name} ($${s.price}, ${s.duration_minutes}min)`).join(', ')
-    const addonList = (services || []).filter(s => s.category === 'addon').map(s => `${s.name} (+$${s.price})`).join(', ')
-
+    // Load prior turn text for context (tool roundtrips are session-local; we don't replay them).
     const { data: recentConvos } = await sb
       .from('ai_conversations')
       .select('messages, created_at')
@@ -143,73 +132,127 @@ export async function POST(req) {
     if (recentConvos) {
       for (const convo of recentConvos.reverse()) {
         for (const m of (convo.messages || [])) {
-          history.push({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })
+          if (typeof m.content === 'string' && m.content.trim()) {
+            history.push({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })
+          }
         }
       }
     }
     history.push({ role: 'user', content: body })
 
-    let scheduleStr = 'Not set'
-    if (salon.hours) {
-      const h = typeof salon.hours === 'string' ? JSON.parse(salon.hours) : salon.hours
-      scheduleStr = Object.entries(h).filter(([, v]) => v).map(([day, v]) => `${day}: ${v.open}-${v.close}`).join(', ')
-    }
-
     const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
-    if (!ANTHROPIC_API_KEY) {
-      return twimlResponse('Our system is temporarily unavailable. Please try again later.')
+    if (!ANTHROPIC_API_KEY) return twimlResponse('Our system is temporarily unavailable. Please try again later.')
+
+    // Today in salon-local-ish terms (timezone is America/New_York for now per backlog).
+    const now = new Date()
+    const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) // YYYY-MM-DD
+    const dayName = now.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' })
+
+    const systemPrompt = `You are the AI receptionist for ${salon.shop_name}, a ${salon.salon_type || 'service business'} in ${salon.city || ''}, ${salon.state || ''} owned by ${salon.owner_name || 'the owner'}.
+
+Your job: help customers book, reschedule, cancel, and answer service questions — entirely over SMS. You have tools to actually do these things; use them, don't just describe them.
+
+Today is ${dayName}, ${todayStr} (America/New_York). The customer's phone is already known: ${from}. Don't ask for it.
+
+Booking flow:
+1. If you don't already know the services + prices, call get_services.
+2. When the customer mentions a date like "tomorrow" or "Friday", convert it to YYYY-MM-DD based on today's date and call lookup_availability with the chosen service's duration_minutes.
+3. Confirm the slot with the customer in plain language ("How about Tuesday May 6 at 2:00 PM?").
+4. Once they say yes AND you have their name, call book_appointment.
+5. Tell them the booking is confirmed.
+
+For reschedule/cancel: call find_my_appointment first to get the appointment_id.
+
+Style: SMS-short. Friendly but not chatty. Don't use markdown. Don't use links unless someone asks. Never mention you're an AI. If you genuinely can't help, say a team member will follow up.`
+
+    // Tool-use loop
+    const messages = history.slice(-30)
+    let assistantText = ''
+    const MAX_ITERS = 5
+    for (let iter = 0; iter < MAX_ITERS; iter++) {
+      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          system: systemPrompt,
+          tools: SMS_VA_TOOLS,
+          messages,
+        }),
+      })
+      const aiData = await aiRes.json()
+
+      if (!aiData?.content) {
+        assistantText = "Thanks for reaching out! We'll get back to you soon."
+        break
+      }
+
+      // Append assistant turn (full content array, including tool_use blocks)
+      messages.push({ role: 'assistant', content: aiData.content })
+
+      // Pull text out of any text blocks
+      const textParts = aiData.content.filter(b => b.type === 'text').map(b => b.text || '').join('').trim()
+      if (textParts) assistantText = textParts
+
+      // If the model is done, stop
+      if (aiData.stop_reason !== 'tool_use') break
+
+      // Otherwise, execute every tool_use block and feed results back
+      const toolUses = aiData.content.filter(b => b.type === 'tool_use')
+      if (toolUses.length === 0) break
+
+      const toolResults = []
+      for (const tu of toolUses) {
+        const result = await executeTool(tu.name, tu.input, { sb, salon, callerPhone: from })
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: tu.id,
+          content: JSON.stringify(result),
+        })
+      }
+      messages.push({ role: 'user', content: toolResults })
     }
 
-    const systemPrompt = `You are the AI receptionist for ${salon.shop_name}, a ${salon.salon_type} in ${salon.city}, ${salon.state} owned by ${salon.owner_name}. Help clients book appointments, answer questions about services and pricing, and be friendly. Core services: ${coreList}. Add-ons: ${addonList}. Hours: ${scheduleStr}. Booking link: https://servicemind.vercel.app/book/${salon.slug}. Keep replies short â this is SMS. If they want to book, send the booking link. If you can't help, say the team will follow up shortly.`
+    if (!assistantText) assistantText = "Got it — someone will be in touch shortly."
 
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 300,
-        system: systemPrompt,
-        messages: history.slice(-20)
-      })
-    })
-
-    const aiData = await aiRes.json()
-    const reply = aiData.content?.map(c => c.text || '').join('') || "Thanks for reaching out! We'll get back to you soon."
-
+    // Persist only the user's text + assistant's final text. Tool roundtrips stay session-local.
     await sb.from('ai_conversations').insert([{
       salon_id: salon.id,
       type: 'receptionist',
       channel: 'sms',
       client_phone: from,
-      messages: [{ role: 'user', content: body }, { role: 'assistant', content: reply }],
-      resolved: false
+      messages: [
+        { role: 'user', content: body },
+        { role: 'assistant', content: assistantText },
+      ],
+      resolved: false,
     }])
 
+    // Ensure a clients row exists for this caller
     const { data: existingClient } = await sb
       .from('clients')
       .select('id')
       .eq('salon_id', salon.id)
       .eq('phone', from)
-      .single()
-
+      .maybeSingle()
     if (!existingClient) {
       await sb.from('clients').insert([{
         salon_id: salon.id,
         phone: from,
         name: 'SMS Client',
         source: 'sms',
-        referral_code: crypto.randomBytes(3).toString('hex').toUpperCase()
+        referral_code: crypto.randomBytes(3).toString('hex').toUpperCase(),
       }])
     }
 
-    return twimlResponse(reply)
+    return twimlResponse(assistantText)
   } catch (err) {
     console.error('SMS incoming error:', err)
     return twimlResponse('Sorry, something went wrong. Please try again.')
   }
 }
-
