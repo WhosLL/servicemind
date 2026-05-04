@@ -24,6 +24,22 @@ export default function Dashboard() {
   const router = useRouter()
   const [salon, setSalon] = useState(null)
   const [viewingAsAdmin, setViewingAsAdmin] = useState(false)
+  const [isUserAdmin, setIsUserAdmin] = useState(false)
+
+  // Check if current user is an admin so we can show the Admin Panel link in the sidebar
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const { data: { session } } = await sb().auth.getSession()
+        if (!session?.access_token) return
+        const res = await fetch('/api/admin/check', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        })
+        if (res.ok) setIsUserAdmin(true)
+      } catch {}
+    }
+    checkAdmin()
+  }, [])
   useEffect(() => {
     const loadSalon = async () => {
       const { data: { user }, error } = await sb().auth.getUser()
@@ -560,6 +576,11 @@ export default function Dashboard() {
             <Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial'} />
             <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>{salon.subscription_status}</span>
           </div>
+          {isUserAdmin && (
+            <a href="/admin" style={{ display: 'block', padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center', background: 'rgba(201,168,76,0.08)', border: '1px solid var(--gold)', color: 'var(--gold)', textDecoration: 'none', letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 8, boxSizing: 'border-box' }}>
+              Admin Panel →
+            </a>
+          )}
           <button onClick={() => sb().auth.signOut().then(() => router.push('/login'))} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center' }}>Log Out</button>
         </div>
       </div>
