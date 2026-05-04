@@ -52,7 +52,7 @@ export async function POST(req) {
       .limit(1)
     if (existingPreProvisioned?.length) {
       return Response.json({
-        error: `A shop "${existingPreProvisioned[0].shop_name}" was already set up for this email by ServiceMind. Please contact support to claim access.`,
+        error: 'This email is already associated with a ServiceMind account. Please contact support@servicemind.io to access it.',
         code: 'SHOP_PRE_PROVISIONED'
       }, { status: 409 })
     }

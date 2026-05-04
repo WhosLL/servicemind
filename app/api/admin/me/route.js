@@ -8,7 +8,7 @@ export async function GET(req) {
   return Response.json({
     user_id: auth.user.id,
     email: auth.user.email,
-    role: profile?.role || 'admin',
+    role: profile?.role || 'unknown',
     display_name: profile?.display_name || null,
     default_commission_rate: profile?.default_commission_rate ?? 0,
     compensation_plan: profile?.compensation_plan || null,

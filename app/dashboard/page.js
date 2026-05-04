@@ -38,18 +38,20 @@ export default function Dashboard() {
       if (asParam) {
         try {
           const { data: { session } } = await sb().auth.getSession()
-          const adminCheck = await fetch('/api/admin/check', {
+          // Use a service-role-backed endpoint so the read isn't blocked by salons RLS
+          // (anon-key reads enforce user_id = auth.uid(), which won't match for pilots).
+          const res = await fetch(`/api/admin/get-salon?id=${encodeURIComponent(asParam)}`, {
             headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
           })
-          if (adminCheck.ok) {
-            const { data: targetSalon } = await sb().from('salons').select('*').eq('id', asParam).maybeSingle()
+          if (res.ok) {
+            const { salon: targetSalon } = await res.json()
             if (targetSalon) {
               setSalon(targetSalon)
               setViewingAsAdmin(true)
               return
             }
           }
-          // Admin check failed or salon not found → fall through to normal load
+          // Admin check failed, salon not found, or non-admin user — fall through to normal load
         } catch {}
       }
 
@@ -582,8 +584,8 @@ export default function Dashboard() {
         {viewingAsAdmin && (
           <div style={{ background: 'rgba(201,168,76,0.10)', borderBottom: '1px solid var(--gold)', padding: '12px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ fontSize: 12, color: 'var(--text)', letterSpacing: '.05em' }}>
-              <span className="cinzel" style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '.25em', marginRight: 12 }}>VIEWING AS ADMIN</span>
-              You are operating <strong>{salon.shop_name}</strong>'s dashboard. Edits will affect this shop.
+              <span className="cinzel" style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '.25em', marginRight: 12 }}>VIEWING AS ADMIN — READ-ONLY</span>
+              Showing <strong>{salon.shop_name}</strong>'s dashboard. Edits will silently fail (RLS) until the admin write-path ships. Use Supabase Studio for now.
             </div>
             <a href="/admin" style={{ fontSize: 11, color: 'var(--gold)', textDecoration: 'none', borderBottom: '1px solid var(--gold)' }}>← Back to Admin</a>
           </div>

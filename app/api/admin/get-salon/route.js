@@ -16,12 +16,20 @@ export async function GET(req) {
   const auth = await requireAdmin(req)
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
-  const sb = getSb()
-  const { data, error } = await sb
+  const url = new URL(req.url)
+  const id = url.searchParams.get('id')
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+    return Response.json({ error: 'invalid id' }, { status: 400 })
+  }
+
+  const { data, error } = await getSb()
     .from('salons')
-    .select('id, slug, shop_name, owner_name, city, state, twilio_phone_number, subscription_status, subscription_tier, trial_ends_at, created_at, user_id, onboarded, is_pilot, created_by_user_id, commission_rate, created_via')
-    .order('created_at', { ascending: false })
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
-  return Response.json({ shops: data || [] })
+  if (!data) return Response.json({ error: 'not found' }, { status: 404 })
+
+  return Response.json({ salon: data })
 }

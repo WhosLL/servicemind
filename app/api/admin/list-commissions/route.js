@@ -50,7 +50,7 @@ export async function GET(req) {
   const { data: reps } = await sb
     .from('profiles')
     .select('id, display_name, role')
-    .in('role', ['rep', 'admin'])
+    .eq('role', 'rep')
 
   return Response.json({
     rows: rows || [],
