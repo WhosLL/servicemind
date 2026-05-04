@@ -23,10 +23,36 @@ const NAV = [
 export default function Dashboard() {
   const router = useRouter()
   const [salon, setSalon] = useState(null)
+  const [viewingAsAdmin, setViewingAsAdmin] = useState(false)
   useEffect(() => {
     const loadSalon = async () => {
       const { data: { user }, error } = await sb().auth.getUser()
       if (error || !user) { router.push('/login'); return }
+
+      // ?as=<salon_id> — admin/rep can view another salon's dashboard.
+      // SERVER-SIDE admin check is mandatory: never trust the URL alone.
+      const asParam = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('as')
+        : null
+
+      if (asParam) {
+        try {
+          const { data: { session } } = await sb().auth.getSession()
+          const adminCheck = await fetch('/api/admin/check', {
+            headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
+          })
+          if (adminCheck.ok) {
+            const { data: targetSalon } = await sb().from('salons').select('*').eq('id', asParam).maybeSingle()
+            if (targetSalon) {
+              setSalon(targetSalon)
+              setViewingAsAdmin(true)
+              return
+            }
+          }
+          // Admin check failed or salon not found → fall through to normal load
+        } catch {}
+      }
+
       const { data: salons } = await sb().from('salons').select('*').eq('user_id', user.id).limit(1)
       if (!salons || salons.length === 0) { router.push('/login'); return }
       setSalon(salons[0])
@@ -552,6 +578,16 @@ export default function Dashboard() {
             </a>
           </div>
         </div>
+
+        {viewingAsAdmin && (
+          <div style={{ background: 'rgba(201,168,76,0.10)', borderBottom: '1px solid var(--gold)', padding: '12px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--text)', letterSpacing: '.05em' }}>
+              <span className="cinzel" style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '.25em', marginRight: 12 }}>VIEWING AS ADMIN</span>
+              You are operating <strong>{salon.shop_name}</strong>'s dashboard. Edits will affect this shop.
+            </div>
+            <a href="/admin" style={{ fontSize: 11, color: 'var(--gold)', textDecoration: 'none', borderBottom: '1px solid var(--gold)' }}>← Back to Admin</a>
+          </div>
+        )}
 
         <div style={{ padding: '48px' }}>
           {loading && <div className="cinzel" style={{ textAlign: 'center', color: 'var(--muted)', padding: 80, letterSpacing: '.2em', fontSize: 11 }}>Loading...</div>}

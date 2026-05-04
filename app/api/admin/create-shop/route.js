@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireAdmin, getProfile } from '../../../../lib/auth-admin'
 
 let _sb
 function getSb() {
@@ -9,23 +10,6 @@ function getSb() {
     )
   }
   return _sb
-}
-
-function adminUserIds() {
-  return (process.env.ADMIN_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean)
-}
-
-async function requireAdmin(req) {
-  const authHeader = req.headers.get('authorization') || ''
-  if (!authHeader.startsWith('Bearer ')) return { ok: false, status: 401, error: 'Unauthorized' }
-  const token = authHeader.replace('Bearer ', '')
-  const sb = getSb()
-  const { data: { user }, error } = await sb.auth.getUser(token)
-  if (error || !user) return { ok: false, status: 401, error: 'Invalid session' }
-  const allowed = adminUserIds()
-  if (allowed.length === 0) return { ok: false, status: 500, error: 'ADMIN_USER_IDS not configured' }
-  if (!allowed.includes(user.id)) return { ok: false, status: 403, error: 'Forbidden' }
-  return { ok: true, user }
 }
 
 function slugify(name) {
@@ -63,7 +47,7 @@ export async function POST(req) {
   try {
     const sb = getSb()
     const body = await req.json()
-    const { shop_name, owner_name, owner_email, owner_phone, salon_type, city, state, address, zip, trial_days } = body
+    const { shop_name, owner_name, owner_email, owner_phone, salon_type, city, state, address, zip, trial_days, is_pilot } = body
 
     if (!shop_name?.trim() || !owner_name?.trim()) {
       return Response.json({ error: 'shop_name and owner_name are required' }, { status: 400 })
@@ -72,7 +56,6 @@ export async function POST(req) {
     let baseSlug = slugify(shop_name)
     if (!baseSlug) return Response.json({ error: 'Cannot derive a slug from shop_name' }, { status: 400 })
 
-    // Ensure slug uniqueness
     let slug = baseSlug
     let attempt = 0
     while (true) {
@@ -85,12 +68,16 @@ export async function POST(req) {
 
     const trialEnd = new Date(Date.now() + (Number(trial_days) || 365) * 24 * 60 * 60 * 1000).toISOString()
 
+    const creatorProfile = await getProfile(auth.user.id)
+    const stampedRate = creatorProfile?.default_commission_rate ?? 0
+    const pilotFlag = is_pilot !== undefined ? !!is_pilot : true
+
     const { data: salonRows, error: salonErr } = await sb
       .from('salons')
       .insert([{
         shop_name: shop_name.trim(),
         owner_name: owner_name.trim(),
-        email: owner_email?.trim() || null,
+        email: owner_email?.trim().toLowerCase() || null,
         phone: owner_phone?.trim() || null,
         personal_phone: owner_phone?.trim() || null,
         salon_type: salon_type || 'barbershop',
@@ -104,6 +91,10 @@ export async function POST(req) {
         trial_ends_at: trialEnd,
         onboarded: true,
         onboarded_at: new Date().toISOString(),
+        is_pilot: pilotFlag,
+        created_by_user_id: auth.user.id,
+        commission_rate: stampedRate,
+        created_via: 'admin_create',
       }])
       .select()
 
@@ -114,7 +105,14 @@ export async function POST(req) {
     await sb.from('salon_services').insert(DEFAULT_SERVICES(salon.id))
     await sb.from('salon_campaigns').insert(DEFAULT_CAMPAIGNS(salon.id))
 
-    return Response.json({ success: true, id: salon.id, slug: salon.slug, shop_name: salon.shop_name })
+    return Response.json({
+      success: true,
+      id: salon.id,
+      slug: salon.slug,
+      shop_name: salon.shop_name,
+      is_pilot: salon.is_pilot,
+      commission_rate: salon.commission_rate,
+    })
   } catch (err) {
     return Response.json({ error: err.message || 'Internal server error' }, { status: 500 })
   }

@@ -8,6 +8,7 @@ export default function NewShopPage() {
   const router = useRouter()
   const [authChecked, setAuthChecked] = useState(false)
   const [authorized, setAuthorized] = useState(false)
+  const [me, setMe] = useState(null)
   const [form, setForm] = useState({
     shop_name: '',
     owner_name: '',
@@ -19,6 +20,7 @@ export default function NewShopPage() {
     address: '',
     zip: '',
     trial_days: 365,
+    is_pilot: true,
   })
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
@@ -29,11 +31,16 @@ export default function NewShopPage() {
       const { data: { user } } = await sb().auth.getUser()
       if (!user) { router.push('/login'); return }
       const { data: { session } } = await sb().auth.getSession()
-      const res = await fetch('/api/admin/check', {
-        headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
-      })
+      const headers = { 'Authorization': `Bearer ${session?.access_token || ''}` }
+      const res = await fetch('/api/admin/check', { headers })
       setAuthorized(res.ok)
       setAuthChecked(true)
+      if (res.ok) {
+        try {
+          const meRes = await fetch('/api/admin/me', { headers })
+          if (meRes.ok) setMe(await meRes.json())
+        } catch {}
+      }
     }
     init()
   }, [])
@@ -95,14 +102,15 @@ export default function NewShopPage() {
           <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: 24, marginBottom: 24, textAlign: 'left' }}>
             <div className="eyebrow" style={{ marginBottom: 12, color: 'var(--muted)' }}>Next Steps</div>
             <ul style={{ color: 'var(--text-2)', fontSize: 13, lineHeight: 1.9, paddingLeft: 18 }}>
-              <li>Provision a Twilio number from the salon's dashboard (or via API)</li>
-              <li>Add services + hours from the dashboard</li>
+              <li>Open the dashboard for this shop (Admin → "Open dashboard" link)</li>
+              <li>Provision a Twilio number, set hours, edit services as needed</li>
               <li>Share the booking page link with the shop owner</li>
-              <li>Owner can claim dashboard access later by signing up at <code>/onboard</code> with the salon's email</li>
+              <li>For owner login: create an auth user in Supabase Auth dashboard with the same email and share creds out-of-band (polished claim flow ships in a follow-up)</li>
             </ul>
           </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
             <a href="/admin" className="btn-ghost" style={{ padding: '12px 24px', fontSize: 11 }}>← Back to Admin</a>
+            <a href={`/dashboard?as=${result.id}`} className="btn-ghost" style={{ padding: '12px 24px', fontSize: 11 }}>Open Dashboard →</a>
             <a href="/admin/new-shop" className="btn-gold" style={{ padding: '12px 24px', fontSize: 11 }}>Create Another</a>
           </div>
         </div>
@@ -182,10 +190,21 @@ export default function NewShopPage() {
           </div>
 
           <div className="eyebrow" style={{ marginBottom: 16, marginTop: 8 }}>Comp Settings</div>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Trial Length (days)</label>
             <input className="input" type="number" value={form.trial_days} onChange={e => setField('trial_days', Number(e.target.value))} style={{ maxWidth: 160 }} />
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Default 365 for pilot shops. Sets `trial_ends_at` to today + this many days.</div>
+          </div>
+          <div style={{ marginBottom: 16, padding: 14, background: 'var(--dark-3)', border: '1px solid var(--border-dim)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input type="checkbox" checked={!!form.is_pilot} onChange={e => setField('is_pilot', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+              <span style={{ color: 'var(--text)', fontSize: 13 }}>Mark as pilot (permanently exempt from Stripe billing)</span>
+            </label>
+          </div>
+          <div style={{ marginBottom: 24, padding: 14, background: 'rgba(201,168,76,0.04)', border: '1px solid var(--border-dim)', fontSize: 12, color: 'var(--text-2)' }}>
+            <div className="eyebrow" style={{ marginBottom: 6, fontSize: 9, color: 'var(--gold)' }}>Audit trail (stamped on this shop)</div>
+            <div>Created by: <strong style={{ color: 'var(--text)' }}>{me?.display_name || me?.email || '—'}</strong></div>
+            <div>Commission rate: <strong style={{ color: 'var(--text)' }}>{((me?.default_commission_rate ?? 0) * 100).toFixed(1)}%</strong></div>
           </div>
 
           {error && <div style={{ background: 'rgba(255,80,80,0.08)', border: '1px solid rgba(255,80,80,0.4)', padding: 12, marginBottom: 16, color: '#ff7070', fontSize: 13 }}>{error}</div>}
