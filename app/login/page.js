@@ -16,7 +16,7 @@ export default function LoginPage() {
     const password = passRef.current?.value?.trim()
     if (!email || !password) { setErr('Enter your email and password.'); return }
     setLoading(true); setErr('')
-    const { error } = await sb().auth.signInWithPassword({ email, password })
+    const { data: signInData, error } = await sb().auth.signInWithPassword({ email, password })
     if (error) {
       const msg = error.message || ''
       if (/email not confirmed/i.test(msg)) setErr('Check your email and click the verification link before signing in.')
@@ -25,7 +25,19 @@ export default function LoginPage() {
       else setErr(msg || 'Could not sign in. Try again.')
       setLoading(false)
     } else {
-      router.push('/dashboard')
+      // Role-based routing: admins → /admin, reps → /rep, shop owners → /dashboard
+      try {
+        const { data: profile } = await sb()
+          .from('profiles')
+          .select('role')
+          .eq('id', signInData?.user?.id)
+          .maybeSingle()
+        if (profile?.role === 'admin') router.push('/admin')
+        else if (profile?.role === 'rep') router.push('/rep')
+        else router.push('/dashboard')
+      } catch {
+        router.push('/dashboard')
+      }
     }
   }
 

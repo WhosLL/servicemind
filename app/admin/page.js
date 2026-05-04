@@ -74,6 +74,7 @@ export default function AdminPage() {
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <a href="/admin/commissions" className="btn-ghost" style={{ padding: '14px 22px', fontSize: 11 }}>Commissions</a>
+            <a href="/admin/new-rep" className="btn-ghost" style={{ padding: '14px 22px', fontSize: 11 }}>+ Add Rep</a>
             <a href="/admin/new-shop" className="btn-gold" style={{ padding: '14px 28px', fontSize: 11 }}>+ Create Shop</a>
           </div>
         </div>
