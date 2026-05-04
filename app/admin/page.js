@@ -72,7 +72,11 @@ export default function AdminPage() {
             </h1>
             <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 8 }}>{salons.length} total · {salons.filter(s => s.twilio_phone_number).length} with SMS active</div>
           </div>
-          <a href="/admin/new-shop" className="btn-gold" style={{ padding: '14px 28px', fontSize: 11 }}>+ Create Shop</a>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <a href="/admin/commissions" className="btn-ghost" style={{ padding: '14px 22px', fontSize: 11 }}>Commissions</a>
+            <a href="/admin/new-rep" className="btn-ghost" style={{ padding: '14px 22px', fontSize: 11 }}>+ Add Rep</a>
+            <a href="/admin/new-shop" className="btn-gold" style={{ padding: '14px 28px', fontSize: 11 }}>+ Create Shop</a>
+          </div>
         </div>
 
         <div style={{ marginBottom: 16 }}>
@@ -85,23 +89,27 @@ export default function AdminPage() {
           <div style={{ padding: 60, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading...</div>
         ) : (
           <div style={{ background: 'var(--dark)', border: '1px solid var(--border-dim)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1.5fr 1fr 1fr', padding: '14px 18px', background: 'var(--dark-3)', borderBottom: '1px solid var(--border-dim)', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr 1fr 1.5fr 0.8fr 0.9fr 1.3fr', padding: '14px 18px', background: 'var(--dark-3)', borderBottom: '1px solid var(--border-dim)', fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>
               <div>Shop</div>
               <div>Owner</div>
               <div>Location</div>
               <div>Twilio Number</div>
               <div>Status</div>
               <div>Created</div>
+              <div>Actions</div>
             </div>
             {filtered.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>No shops match.</div>
             ) : filtered.map(s => (
-              <a key={s.id} href={`/book/${s.slug}`} target="_blank" rel="noreferrer"
-                style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1.5fr 1fr 1fr', padding: '16px 18px', borderBottom: '1px solid var(--border-dim)', fontSize: 13, color: 'var(--text)', textDecoration: 'none', transition: 'background .15s' }}
+              <div key={s.id}
+                style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr 1fr 1.5fr 0.8fr 0.9fr 1.3fr', padding: '16px 18px', borderBottom: '1px solid var(--border-dim)', fontSize: 13, color: 'var(--text)', transition: 'background .15s', alignItems: 'center' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,168,76,0.04)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <div>
-                  <div style={{ fontWeight: 500 }}>{s.shop_name || '(unnamed)'}</div>
+                  <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {s.shop_name || '(unnamed)'}
+                    {s.is_pilot && <span style={{ fontSize: 9, padding: '2px 6px', background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', letterSpacing: '.15em' }}>PILOT</span>}
+                  </div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{s.slug}</div>
                 </div>
                 <div style={{ color: 'var(--text-2)' }}>{s.owner_name || '—'}</div>
@@ -115,7 +123,11 @@ export default function AdminPage() {
                   </span>
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: 11 }}>{new Date(s.created_at).toLocaleDateString()}</div>
-              </a>
+                <div style={{ display: 'flex', gap: 10, fontSize: 11 }}>
+                  <a href={`/dashboard?as=${s.id}`} style={{ color: 'var(--gold)', textDecoration: 'none', borderBottom: '1px solid var(--gold)' }}>Dashboard</a>
+                  <a href={`/book/${s.slug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--text-2)', textDecoration: 'none', borderBottom: '1px solid var(--border-dim)' }}>Booking</a>
+                </div>
+              </div>
             ))}
           </div>
         )}

@@ -23,10 +23,54 @@ const NAV = [
 export default function Dashboard() {
   const router = useRouter()
   const [salon, setSalon] = useState(null)
+  const [viewingAsAdmin, setViewingAsAdmin] = useState(false)
+  const [isUserAdmin, setIsUserAdmin] = useState(false)
+
+  // Check if current user is an admin so we can show the Admin Panel link in the sidebar
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const { data: { session } } = await sb().auth.getSession()
+        if (!session?.access_token) return
+        const res = await fetch('/api/admin/check', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        })
+        if (res.ok) setIsUserAdmin(true)
+      } catch {}
+    }
+    checkAdmin()
+  }, [])
   useEffect(() => {
     const loadSalon = async () => {
       const { data: { user }, error } = await sb().auth.getUser()
       if (error || !user) { router.push('/login'); return }
+
+      // ?as=<salon_id> — admin/rep can view another salon's dashboard.
+      // SERVER-SIDE admin check is mandatory: never trust the URL alone.
+      const asParam = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('as')
+        : null
+
+      if (asParam) {
+        try {
+          const { data: { session } } = await sb().auth.getSession()
+          // Use a service-role-backed endpoint so the read isn't blocked by salons RLS
+          // (anon-key reads enforce user_id = auth.uid(), which won't match for pilots).
+          const res = await fetch(`/api/admin/get-salon?id=${encodeURIComponent(asParam)}`, {
+            headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
+          })
+          if (res.ok) {
+            const { salon: targetSalon } = await res.json()
+            if (targetSalon) {
+              setSalon(targetSalon)
+              setViewingAsAdmin(true)
+              return
+            }
+          }
+          // Admin check failed, salon not found, or non-admin user — fall through to normal load
+        } catch {}
+      }
+
       const { data: salons } = await sb().from('salons').select('*').eq('user_id', user.id).limit(1)
       if (!salons || salons.length === 0) { router.push('/login'); return }
       setSalon(salons[0])
@@ -532,6 +576,11 @@ export default function Dashboard() {
             <Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial'} />
             <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>{salon.subscription_status}</span>
           </div>
+          {isUserAdmin && (
+            <a href="/admin" style={{ display: 'block', padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center', background: 'rgba(201,168,76,0.08)', border: '1px solid var(--gold)', color: 'var(--gold)', textDecoration: 'none', letterSpacing: '.25em', textTransform: 'uppercase', marginBottom: 8, boxSizing: 'border-box' }}>
+              Admin Panel →
+            </a>
+          )}
           <button onClick={() => sb().auth.signOut().then(() => router.push('/login'))} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 9, width: '100%', textAlign: 'center' }}>Log Out</button>
         </div>
       </div>
@@ -552,6 +601,16 @@ export default function Dashboard() {
             </a>
           </div>
         </div>
+
+        {viewingAsAdmin && (
+          <div style={{ background: 'rgba(201,168,76,0.10)', borderBottom: '1px solid var(--gold)', padding: '12px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--text)', letterSpacing: '.05em' }}>
+              <span className="cinzel" style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '.25em', marginRight: 12 }}>VIEWING AS ADMIN — READ-ONLY</span>
+              Showing <strong>{salon.shop_name}</strong>'s dashboard. Edits will silently fail (RLS) until the admin write-path ships. Use Supabase Studio for now.
+            </div>
+            <a href="/admin" style={{ fontSize: 11, color: 'var(--gold)', textDecoration: 'none', borderBottom: '1px solid var(--gold)' }}>← Back to Admin</a>
+          </div>
+        )}
 
         <div style={{ padding: '48px' }}>
           {loading && <div className="cinzel" style={{ textAlign: 'center', color: 'var(--muted)', padding: 80, letterSpacing: '.2em', fontSize: 11 }}>Loading...</div>}

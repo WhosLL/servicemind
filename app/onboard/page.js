@@ -124,7 +124,14 @@ export default function Onboard() {
         })
       })
       const result = await res.json()
-      if (!res.ok) throw new Error(result.error || 'Signup failed')
+      if (!res.ok) {
+        if (result.code === 'SHOP_PRE_PROVISIONED') {
+          setErr('This shop was already set up by ServiceMind. Contact support@servicemind.io to access your account.')
+          setLoading(false)
+          return
+        }
+        throw new Error(result.error || 'Signup failed')
+      }
 
       // Sign in
       await sb().auth.signInWithPassword({ email: info.email, password: info.password })

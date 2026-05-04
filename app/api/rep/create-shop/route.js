@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { requireAdmin, getProfile } from '../../../../lib/auth-admin'
+import { requireAdminOrRep, getProfile } from '../../../../lib/auth-admin'
 
 let _sb
 function getSb() {
@@ -34,20 +34,17 @@ const DEFAULT_CAMPAIGNS = (id) => [
 ]
 
 const DEFAULT_SERVICES = (salonId) => [
-  { salon_id: salonId, name: 'Haircut', category: 'core', price: 35, duration_minutes: 30, is_addon: false, sort_order: 0 },
-  { salon_id: salonId, name: 'Beard Trim', category: 'core', price: 15, duration_minutes: 15, is_addon: false, sort_order: 1 },
-  { salon_id: salonId, name: 'Cut + Beard', category: 'core', price: 45, duration_minutes: 45, is_addon: false, sort_order: 2 },
-  { salon_id: salonId, name: 'Kids Cut', category: 'core', price: 25, duration_minutes: 25, is_addon: false, sort_order: 3 },
+  { salon_id: salonId, name: 'Service 1', category: 'core', price: 0, duration_minutes: 30, is_addon: false, sort_order: 0 },
 ]
 
 export async function POST(req) {
-  const auth = await requireAdmin(req)
+  const auth = await requireAdminOrRep(req)
   if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
 
   try {
     const sb = getSb()
     const body = await req.json()
-    const { shop_name, owner_name, owner_email, owner_phone, salon_type, city, state, address, zip, trial_days, is_pilot } = body
+    const { shop_name, owner_name, owner_email, owner_phone, salon_type, city, state, address, zip } = body
 
     if (!shop_name?.trim() || !owner_name?.trim()) {
       return Response.json({ error: 'shop_name and owner_name are required' }, { status: 400 })
@@ -66,11 +63,12 @@ export async function POST(req) {
       if (attempt > 50) return Response.json({ error: 'Could not find unique slug' }, { status: 500 })
     }
 
-    const trialEnd = new Date(Date.now() + (Number(trial_days) || 365) * 24 * 60 * 60 * 1000).toISOString()
+    // Reps get a 30-day standard trial (no special pilot exemption)
+    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
     const creatorProfile = await getProfile(auth.user.id)
     const stampedRate = creatorProfile?.default_commission_rate ?? 0
-    const pilotFlag = is_pilot !== undefined ? !!is_pilot : true
+    const callerIsAdmin = creatorProfile?.role === 'admin'
 
     const { data: salonRows, error: salonErr } = await sb
       .from('salons')
@@ -91,17 +89,16 @@ export async function POST(req) {
         trial_ends_at: trialEnd,
         onboarded: true,
         onboarded_at: new Date().toISOString(),
-        is_pilot: pilotFlag,
+        is_pilot: false,
         created_by_user_id: auth.user.id,
         commission_rate: stampedRate,
-        created_via: 'admin_create',
+        created_via: callerIsAdmin ? 'admin_create' : 'rep_signup',
       }])
       .select()
 
     if (salonErr) return Response.json({ error: 'Failed to create salon: ' + salonErr.message }, { status: 500 })
 
     const salon = salonRows[0]
-
     await sb.from('salon_services').insert(DEFAULT_SERVICES(salon.id))
     await sb.from('salon_campaigns').insert(DEFAULT_CAMPAIGNS(salon.id))
 
@@ -110,7 +107,6 @@ export async function POST(req) {
       id: salon.id,
       slug: salon.slug,
       shop_name: salon.shop_name,
-      is_pilot: salon.is_pilot,
       commission_rate: salon.commission_rate,
     })
   } catch (err) {

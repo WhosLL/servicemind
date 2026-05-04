@@ -40,8 +40,25 @@ export async function POST(req) {
       return Response.json({ error: 'Please enter a valid email address.' }, { status: 400 })
     }
 
+    const normEmail = email.trim().toLowerCase()
+
+    // Block duplicate-salon creation when an admin-created shop already exists for this email
+    // but has no auth.user_id attached yet. Owner must claim out-of-band until M2 ships a claim flow.
+    const { data: existingPreProvisioned } = await supabaseAdmin
+      .from('salons')
+      .select('id, shop_name')
+      .ilike('email', normEmail)
+      .is('user_id', null)
+      .limit(1)
+    if (existingPreProvisioned?.length) {
+      return Response.json({
+        error: 'This email is already associated with a ServiceMind account. Please contact support@servicemind.io to access it.',
+        code: 'SHOP_PRE_PROVISIONED'
+      }, { status: 409 })
+    }
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: normEmail,
       password,
       email_confirm: true
     })
@@ -62,7 +79,12 @@ export async function POST(req) {
 
       const { data: salon, error: salonError } = await supabaseAdmin
         .from('salons')
-        .insert([{ ...salonData, user_id: userId }])
+        .insert([{
+          ...salonData,
+          email: salonData.email ? String(salonData.email).trim().toLowerCase() : normEmail,
+          user_id: userId,
+          created_via: 'self_signup',
+        }])
         .select()
 
       if (salonError) {
