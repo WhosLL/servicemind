@@ -2,11 +2,11 @@ import './globals.css'
 
 export const metadata = {
   title: 'ServiceMind — The AI Booking Platform Built for Barbers',
-  description: 'Your own branded booking page, SMS confirmations, AI that fills slow days — all for $79/mo. First month free, no card required.',
+  description: 'Your own branded booking page, SMS confirmations, AI that fills slow days — all for $49/mo. First month free, no card required.',
   metadataBase: new URL('https://servicemind.io'),
   openGraph: {
     title: 'ServiceMind — The AI Booking Platform Built for Barbers',
-    description: 'Your own branded booking page, SMS confirmations, AI that fills slow days. $79/mo. First month free, no card.',
+    description: 'Your own branded booking page, SMS confirmations, AI that fills slow days. $49/mo. First month free, no card.',
     url: 'https://servicemind.io',
     siteName: 'ServiceMind',
     type: 'website',
@@ -14,7 +14,7 @@ export const metadata = {
   twitter: {
     card: 'summary',
     title: 'ServiceMind — The AI Booking Platform Built for Barbers',
-    description: 'Your own branded booking page, SMS confirmations, AI that fills slow days. $79/mo. First month free, no card.',
+    description: 'Your own branded booking page, SMS confirmations, AI that fills slow days. $49/mo. First month free, no card.',
   }
 }
 

@@ -19,23 +19,10 @@ export default function App() {
   return <Home onStart={() => router.push('/onboard')} onLogin={() => router.push('/login')} />
 }
 function Home({ onStart, onLogin }) {
-  const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
-  const [submitted, setSubmitted] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-
-  const joinWaitlist = async () => {
-    if (!email) return
-    setSubmitting(true)
-    await sb().from('waitlist').insert([{ email, name }]).select()
-    setSubmitted(true)
-    setSubmitting(false)
-  }
-
   const features = [
     { icon: '⚡', tag: 'Instant', title: 'Live in Minutes', body: 'Fill out one form. Your branded booking page, calendar, and SMS confirmations go live automatically. No tech skills, no setup fee.' },
     { icon: '🤖', tag: 'AI-Powered', title: 'AI Booking Agent', body: 'Miss a call? Your AI texts back instantly, qualifies the client, and books the cut while you stay focused on the chair in front of you.' },
-    { icon: '📅', tag: 'Automated', title: 'Zero No-Shows', body: 'Smart 24-hour and 1-hour SMS reminders go out automatically. Clients confirm or reschedule with a tap. No-shows drop immediately.' },
+    { icon: '📅', tag: 'Automated', title: 'Appointment Reminders', body: 'Smart 24-hour and 1-hour SMS reminders go out automatically. Clients confirm or reschedule with a tap. No-shows drop immediately.' },
     { icon: '💰', tag: 'Revenue', title: 'Slow-Day Deals', body: 'Tuesday looking empty? AI writes a deal, posts to your IG, and texts your regulars. Most shops fill 2-3 extra chairs per week on autopilot.' },
     { icon: '⭐', tag: 'Reputation', title: 'Google Reviews on Autopilot', body: 'Auto-request reviews after every cut. Clients tap through in 10 seconds. Your Google rating climbs while you work.' },
     { icon: '📊', tag: 'Insights', title: 'Business Advisor', body: 'Your AI reads your numbers every week and tells you exactly what to do next — like having a business coach who actually gets the chair.' },
@@ -52,26 +39,16 @@ function Home({ onStart, onLogin }) {
 
   const plans = [
     {
-      name: 'Solo', price: '$79', period: '/mo', hot: true,
-      desc: 'For solo barbers and booth renters. One chair, full power.',
-      features: ['Your own branded booking page', 'SMS confirmations + reminders', 'AI missed-call text-back', 'Slow-day deal generator', 'Google reviews automation', 'No booking fees, no cut of tips'],
-    },
-    {
-      name: 'Shop', price: '$150', period: '/mo',
-      desc: 'For 2-5 chair shops with staff.',
-      features: ['Everything in Solo', 'Multi-staff calendar', 'Per-barber booking pages', 'AI business advisor', 'Win-back campaigns', 'Advanced analytics'],
-    },
-    {
-      name: 'Pro', price: '$250', period: '/mo',
-      desc: 'For multi-location shops and franchises.',
-      features: ['Everything in Shop', 'Multi-location support', 'White-label option', 'Custom AI training', 'API access', 'Priority support'],
+      name: 'Solo', price: '$49', period: '/mo', hot: true,
+      desc: 'One flat price. Everything included. Beat every other booking tool on price and on what it does.',
+      features: ['Your own branded booking page', 'SMS confirmations + reminders', 'SMS-native AI virtual assistant', 'AI missed-call text-back', 'Slow-day deal generator', 'Reviews collection (in-app or Google)', 'No booking fees, no cut of tips'],
     },
   ]
 
   const faqs = [
     { q: 'How long does setup take?', a: 'Under 5 minutes. Fill out one form with your shop info, services, and hours — your booking page and SMS confirmations go live automatically.' },
     { q: 'Do I need a credit card to start?', a: 'No. Start your 30-day free trial with just an email. We only ask for a card if you decide to keep going after the trial.' },
-    { q: 'Do you take a cut of my tips or bookings?', a: 'Never. Flat $79/mo for Solo — no booking fees, no commission on tips, no hidden charges. What clients pay, you keep.' },
+    { q: 'Do you take a cut of my tips or bookings?', a: 'Never. Flat $49/mo — no booking fees, no commission on tips, no hidden charges. What clients pay, you keep.' },
     { q: 'Can I cancel anytime?', a: 'Yes. No contracts, no cancellation fees. Your booking page stays up until the end of your billing period. Your data is always yours to export.' },
     { q: 'Will my existing clients have to do anything?', a: 'Nope. Your new booking link drops into your Instagram bio or wherever you share it. Clients just tap and book — no app download, no account creation.' },
     { q: 'Does it work for my shop type?', a: 'Built first for solo barbers and small barbershops. Also works great for hair salons, nail studios, tattoo artists, and booth renters — any chair-based service business.' },
@@ -116,7 +93,7 @@ function Home({ onStart, onLogin }) {
             for Barbers.
           </h1>
           <p style={{ fontSize: 17, color: 'var(--text-2)', lineHeight: 1.9, maxWidth: 540, marginBottom: 56 }}>
-            Your own branded booking page, SMS confirmations that feel personal, AI that fills your slow days — all for $79/mo. No booking fees. No cut of your tips. Cancel anytime.
+            Your own branded booking page, SMS confirmations that feel personal, AI that fills your slow days — all for $49/mo. No booking fees. No cut of your tips. Cancel anytime.
           </p>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 60 }}>
             <button onClick={onStart} className="btn-gold" style={{ padding: '18px 52px', fontSize: 12 }}>Start 30-Day Free Trial</button>
@@ -207,7 +184,7 @@ function Home({ onStart, onLogin }) {
             <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>No surprises.</em>
           </h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, maxWidth: 1100 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20, maxWidth: 420, margin: '0 auto' }}>
           {plans.map((p, i) => (
             <div key={i} style={{ background: p.hot ? 'rgba(201,168,76,.04)' : 'var(--dark)', border: p.hot ? '1px solid var(--gold-dim)' : '1px solid var(--border-dim)', padding: '44px 36px', position: 'relative' }}>
               {p.hot && (
@@ -234,35 +211,6 @@ function Home({ onStart, onLogin }) {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ── WAITLIST / CTA ── */}
-      <section style={{ margin: '0 60px 120px', background: 'var(--dark)', border: '1px solid var(--border)', padding: '80px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(to right, transparent, var(--gold), transparent)' }} />
-        <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
-          <div className="eyebrow" style={{ marginBottom: 28, justifyContent: 'center' }}>Get Early Access</div>
-          <h2 className="cormorant" style={{ fontSize: 'clamp(36px,4vw,60px)', fontWeight: 300, lineHeight: 1.1, marginBottom: 20 }}>
-            Join the waitlist.<br />
-            <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Launch first.</em>
-          </h2>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 44 }}>
-            Early access members get 30 days free and locked-in pricing for life. Limited spots.
-          </p>
-          {submitted ? (
-            <div style={{ background: 'rgba(39,174,96,.08)', border: '1px solid rgba(39,174,96,.25)', padding: '24px 32px', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-              <div className="cinzel" style={{ color: 'var(--green)', fontSize: 11, letterSpacing: '.2em', marginBottom: 8 }}>You're on the list</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>We'll reach out within 24 hours with your early access link.</div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input className="input" placeholder="Your Name" value={name} onChange={e => setName(e.target.value)} />
-              <input className="input" type="email" placeholder="Email Address" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && joinWaitlist()} />
-              <button className="btn-gold" onClick={joinWaitlist} disabled={submitting} style={{ padding: '18px', fontSize: 12, width: '100%', textAlign: 'center', opacity: submitting ? .6 : 1 }}>
-                {submitting ? 'Submitting...' : 'Claim Early Access →'}
-              </button>
-            </div>
-          )}
         </div>
       </section>
 

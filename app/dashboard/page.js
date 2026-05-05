@@ -501,7 +501,7 @@ export default function Dashboard() {
   const today = new Date().toISOString().split('T')[0]
   const todayAppts = appointments.filter(a => a.appointment_date === today)
   const revenue = appointments.filter(a => a.status === 'completed').reduce((s, a) => s + (a.total_price || 0), 0)
-  const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : 'â'
+  const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.stars, 0) / reviews.length).toFixed(1) : 'N/A'
   const statusColor = { confirmed: 'var(--gold)', completed: 'var(--green)', cancelled: 'var(--red)', no_show: 'var(--muted)', pending: 'var(--blue)' }
 
   const referredClients = clients.filter(c => c.referred_by)
@@ -666,7 +666,7 @@ export default function Dashboard() {
                   </div>
                   <div className="card" style={{ padding: '28px' }}>
                     <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.2em', color: 'var(--gold)', marginBottom: 16 }}>Shop Details</div>
-                    {[['Type', salon.salon_type], ['City', [salon.city, salon.state].filter(Boolean).join(', ') || 'â'], ['Plan', salon.subscription_tier], ['Status', salon.subscription_status]].map(([l, v]) => (
+                    {[['Type', salon.salon_type], ['City', [salon.city, salon.state].filter(Boolean).join(', ') || 'N/A'], ['Plan', salon.subscription_tier], ['Status', salon.subscription_status]].map(([l, v]) => (
                       <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 12 }}>
                         <span style={{ color: 'var(--muted)' }}>{l}</span>
                         <span style={{ color: 'var(--text)', textTransform: 'capitalize' }}>{v}</span>
@@ -726,7 +726,7 @@ export default function Dashboard() {
                     <div style={{ display: 'flex', gap: 2 }}>
                       <Stat label="Total Visits" value={selectedClient.total_visits || 0} />
                       <Stat label="Total Spent" value={`$${selectedClient.total_spent || 0}`} />
-                      <Stat label="Last Visit" value={selectedClient.last_visit_at ? new Date(selectedClient.last_visit_at).toLocaleDateString() : 'â'} />
+                      <Stat label="Last Visit" value={selectedClient.last_visit_at ? new Date(selectedClient.last_visit_at).toLocaleDateString() : 'N/A'} />
                     </div>
                   </div>
                   <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1086,7 +1086,7 @@ export default function Dashboard() {
                         <tr key={c.id} style={{ borderBottom: '1px solid var(--border-dim)' }}>
                           <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text)' }}>{c.name || 'Unknown'}</td>
                           <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--gold)' }}>{c.referred_by}</td>
-                          <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--muted)' }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : 'â'}</td>
+                          <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--muted)' }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}</td>
                           <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text)' }}>{c.total_visits || 0}</td>
                           <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--gold)' }}>${c.total_spent || 0}</td>
                         </tr>
@@ -1516,7 +1516,7 @@ export default function Dashboard() {
                   ].map(([device, steps]) => (
                     <div key={device} style={{ padding: '8px 14px', background: 'var(--dark-3)', border: '1px solid var(--border-dim)', marginBottom: 1, display: 'flex', gap: 12, fontSize: 11 }}>
                       <span style={{ color: 'var(--text)', fontWeight: 500, minWidth: 70 }}>{device}</span>
-                      <span style={{ color: 'var(--muted)' }}>{steps}</span>
+                      <span style={{ color: 'var(--gold)' }}>{steps}</span>
                     </div>
                   ))}
                 </div>

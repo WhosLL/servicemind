@@ -24,7 +24,7 @@ export default function TermsPage() {
         <p>New accounts start with a 30-day free trial. No credit card is required to begin. After 30 days, a valid payment method is required to continue. We'll notify you before any charge.</p>
 
         <h2 className="cinzel" style={{ fontSize: 14, letterSpacing: '.2em', color: 'var(--gold)', margin: '32px 0 12px' }}>4. Pricing & Billing</h2>
-        <p>Plans are billed monthly. Current pricing: Solo $79/mo, Shop $150/mo, Pro $250/mo. No booking fees. No cut of tips. You can cancel at any time; your account remains active until the end of the current billing period.</p>
+        <p>Plans are billed monthly. Current pricing: $49/mo flat. No booking fees. No cut of tips. You can cancel at any time; your account remains active until the end of the current billing period.</p>
 
         <h2 className="cinzel" style={{ fontSize: 14, letterSpacing: '.2em', color: 'var(--gold)', margin: '32px 0 12px' }}>5. Your Data</h2>
         <p>Your bookings, clients, and business data belong to you. We don't sell your data. You can export your data at any time and permanently delete it on cancellation.</p>
