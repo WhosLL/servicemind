@@ -116,7 +116,8 @@ export async function POST(req) {
         })
         await sb.from('sms_log').insert([{
           salon_id, to_phone: clientPhoneClean, from_phone: salon.twilio_phone_number,
-          message: clientBody, trigger_type: 'booking_confirmation', status: 'sent'
+          message: clientBody, trigger_type: 'booking_confirmation', status: 'sent',
+          appointment_id: appt?.[0]?.id
         }])
       }
 
@@ -131,7 +132,8 @@ export async function POST(req) {
         })
         await sb.from('sms_log').insert([{
           salon_id, to_phone: ownerPhoneClean, from_phone: salon.twilio_phone_number,
-          message: ownerBody, trigger_type: 'owner_booking_alert', status: 'sent'
+          message: ownerBody, trigger_type: 'owner_booking_alert', status: 'sent',
+          appointment_id: appt?.[0]?.id
         }])
       }
     }

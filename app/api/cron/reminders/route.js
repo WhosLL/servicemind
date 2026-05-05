@@ -117,7 +117,8 @@ export async function GET(req) {
         client_name: appt.client_name,
         service_name: appt.service_name,
         booking_date: appt.appointment_date,
-        time: appt.appointment_time
+        time: appt.appointment_time,
+        appointment_id: appt.id
       })
       if (r.success) summary.sent += r.sent || 0
       else if (r.error) summary.errors.push({ appt: appt.id, error: r.error })

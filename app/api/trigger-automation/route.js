@@ -80,7 +80,7 @@ export async function POST(req) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${process.env.CRON_SECRET}`
           },
-          body: JSON.stringify({ salon_id, to: client_phone, message, trigger_type, campaign_id: campaign.id })
+          body: JSON.stringify({ salon_id, to: client_phone, message, trigger_type, campaign_id: campaign.id, appointment_id })
         })
         const smsData = await smsRes.json()
         results.push({ campaign: campaign.name, phone: client_phone, ...smsData })

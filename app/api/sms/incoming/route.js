@@ -158,6 +158,61 @@ export async function POST(req) {
     const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) // YYYY-MM-DD
     const dayName = now.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' })
 
+    // Two-way reply correlation: if we sent this caller an automation in the last 4 hours,
+    // surface it so the VA interprets short replies (C/R/X/yes/etc) against the right appointment.
+    let recentOutboundContext = ''
+    try {
+      const fourHoursAgoIso = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+      const { data: recentOut } = await sb
+        .from('sms_log')
+        .select('trigger_type, message, appointment_id, created_at')
+        .eq('salon_id', salon.id)
+        .eq('to_phone', from)
+        .eq('status', 'sent')
+        .gte('created_at', fourHoursAgoIso)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      const out = recentOut?.[0]
+      const correlatedTriggers = ['reminder_1h', 'reminder_24h', 'win_back', 'slow_day', 'birthday']
+      if (out && correlatedTriggers.includes(out.trigger_type)) {
+        const minsAgo = Math.max(1, Math.round((Date.now() - new Date(out.created_at).getTime()) / 60000))
+        let apptBlock = ''
+        let intentBlock = ''
+        if (out.appointment_id) {
+          const { data: appt } = await sb
+            .from('salon_appointments')
+            .select('id, service_name, appointment_date, appointment_time, status')
+            .eq('id', out.appointment_id)
+            .maybeSingle()
+          if (appt && appt.status !== 'cancelled') {
+            apptBlock = `\n- Appointment: ${appt.service_name} on ${appt.appointment_date} at ${appt.appointment_time} (id: ${appt.id})`
+            intentBlock = [
+              `- "yes" / "y" / "C" / "confirm" / "1" / 👍 → reply with a short confirmation like "Confirmed — see you then." No tool call needed.`,
+              `- "R" / "reschedule" / "2" / "move it" → call reschedule_appointment with appointment_id=${out.appointment_id}. Ask for new date/time if not provided.`,
+              `- "X" / "cancel" / "3" / "can't make it" → confirm with the customer once, then call cancel_appointment with appointment_id=${out.appointment_id}.`,
+            ].join('\n')
+          }
+        }
+        if (!intentBlock) {
+          intentBlock = `- This was a marketing message with no specific appointment. If they want to book, follow the normal flow (get_services → lookup_availability → book_appointment). If they're asking a question, answer it.`
+        }
+
+        recentOutboundContext = `
+
+RECENT OUTBOUND CONTEXT — the customer is likely replying to a message we just sent.
+- Trigger: ${out.trigger_type}
+- Sent: ${minsAgo} min ago
+- Outbound body: "${out.message}"${apptBlock}
+
+Interpret short or vague replies against this context:
+${intentBlock}
+- If the reply is clearly about a different intent (a new booking, hours question, etc.), follow that intent instead.`
+      }
+    } catch {
+      // Non-fatal — the VA still runs without the context block.
+    }
+
     const systemPrompt = `You are the AI receptionist for ${salon.shop_name}, a ${salon.salon_type || 'service business'} in ${salon.city || ''}, ${salon.state || ''} owned by ${salon.owner_name || 'the owner'}.
 
 Your job: help customers book, reschedule, cancel, and answer service questions — entirely over SMS. You have tools to actually do these things; use them, don't just describe them.
@@ -173,7 +228,7 @@ Booking flow:
 
 For reschedule/cancel: call find_my_appointment first to get the appointment_id.
 
-Style: SMS-short. Friendly but not chatty. Don't use markdown. Don't use links unless someone asks. Never mention you're an AI. If you genuinely can't help, say a team member will follow up.`
+Style: SMS-short. Friendly but not chatty. Don't use markdown. Don't use links unless someone asks. Never mention you're an AI. If you genuinely can't help, say a team member will follow up.${recentOutboundContext}`
 
     // Tool-use loop
     const messages = history.slice(-30)

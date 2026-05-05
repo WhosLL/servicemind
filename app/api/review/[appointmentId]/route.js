@@ -140,7 +140,8 @@ export async function POST(req, { params }) {
         })
         await sb.from('sms_log').insert([{
           salon_id: salon.id, to_phone: cleanPhone, from_phone: salon.twilio_phone_number,
-          message: alertBody, trigger_type: 'low_rating_alert', status: 'sent'
+          message: alertBody, trigger_type: 'low_rating_alert', status: 'sent',
+          appointment_id: appointmentId
         }])
       } catch (alertErr) {
         // Don't fail the review submission if the alert fails

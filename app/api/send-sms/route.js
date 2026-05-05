@@ -14,7 +14,7 @@ function getSb() {
 export async function POST(req) {
   try {
     const sb = getSb()
-    const { salon_id, to, message, trigger_type, campaign_id } = await req.json()
+    const { salon_id, to, message, trigger_type, campaign_id, appointment_id } = await req.json()
 
     if (!salon_id || !to || !message) {
       return Response.json({ error: 'Missing required fields: salon_id, to, message' }, { status: 400 })
@@ -49,7 +49,7 @@ export async function POST(req) {
 
     if (!salon?.twilio_phone_number) {
       await sb.from('sms_log').insert([{
-        salon_id, to_phone: to, message, trigger_type, campaign_id,
+        salon_id, to_phone: to, message, trigger_type, campaign_id, appointment_id,
         status: 'failed', error_message: 'No phone number assigned. Enable texting in Settings.'
       }])
       return Response.json({ error: 'No phone number assigned. Enable texting in Settings.' }, { status: 400 })
@@ -80,7 +80,7 @@ export async function POST(req) {
       if (optOut?.length) {
         await sb.from('sms_log').insert([{
           salon_id, to_phone: cleanPhone, from_phone: salon.twilio_phone_number,
-          message, trigger_type, campaign_id,
+          message, trigger_type, campaign_id, appointment_id,
           status: 'blocked_opt_out', error_message: 'Recipient has opted out of SMS'
         }])
         return Response.json({ error: 'Recipient has opted out of SMS' }, { status: 403 })
@@ -108,7 +108,7 @@ export async function POST(req) {
     if (twilioRes.ok) {
       await sb.from('sms_log').insert([{
         salon_id, to_phone: cleanPhone, from_phone: salon.twilio_phone_number,
-        message, trigger_type, campaign_id,
+        message, trigger_type, campaign_id, appointment_id,
         twilio_sid: twilioData.sid, status: 'sent'
       }])
       return Response.json({ success: true, sid: twilioData.sid, status: twilioData.status })
@@ -116,7 +116,7 @@ export async function POST(req) {
       const errMsg = twilioData.message || 'Unknown Twilio error'
       await sb.from('sms_log').insert([{
         salon_id, to_phone: cleanPhone, from_phone: salon.twilio_phone_number,
-        message, trigger_type, campaign_id,
+        message, trigger_type, campaign_id, appointment_id,
         status: 'failed', error_message: errMsg
       }])
       return Response.json({ error: errMsg, code: twilioData.code }, { status: 400 })
