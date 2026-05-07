@@ -10,3 +10,6 @@ node_modules/
 !.env.example
 
 .env*.local
+
+# Screenshot tool output (regenerated locally, not source of truth)
+scripts/shot-*.png

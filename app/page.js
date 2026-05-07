@@ -1,264 +1,358 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { sb } from '../lib/supabase'
-import './globals.css'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import NavBar from './_components/landing/NavBar'
+import Wordmark from './_components/landing/Wordmark'
+import HeroSmsMockup from './_components/landing/HeroSmsMockup'
+import BookingPageMockup from './_components/landing/BookingPageMockup'
+import ReminderThreadMockup from './_components/landing/ReminderThreadMockup'
+import DashboardMockup from './_components/landing/DashboardMockup'
+import FaqAccordion from './_components/landing/FaqAccordion'
+import Comparison from './_components/landing/Comparison'
 
-export default function App() {
-  const router = useRouter()
-  const [mounted, setMounted] = useState(false)
+const TRUST_CHIPS = [
+  ['30 Day', 'Free Trial'],
+  ['No Card', 'Required'],
+  ['5 Min', 'Setup'],
+  ['$49', 'Flat — No Booking Fees'],
+]
 
-  useEffect(() => {
-    setMounted(true)
-    sb().auth.getUser().then(({ data: { user } }) => {
-      if (user) router.push('/dashboard')
-    }).catch(() => {})
-  }, [])
+const PILLARS = [
+  {
+    eyebrow: 'A',
+    title: 'Your booking page, branded like your shop',
+    body: 'Pick a template, drop in your services and hours, and your booking page is live in under five minutes. Your colors, your photos, your link. Goes straight in your Instagram bio — no app download for clients, no account to create.',
+    visual: 'booking',
+  },
+  {
+    eyebrow: 'B',
+    title: 'An AI receptionist that lives in the text thread',
+    body: "Clients reply to a reminder. The AI reschedules, cancels, or answers their question right inside the same text thread — no portal, no link to chase. Miss a call mid-fade? It texts the caller back, qualifies them, and books the slot before you're done.",
+    visual: 'reminder',
+  },
+  {
+    eyebrow: 'C',
+    title: 'Seven automations on autopilot',
+    body: '24-hour reminders, 1-hour reminders, win-backs for clients who haven\'t been in for 60 days, slow-day fillers, missed-call text-back, post-visit review requests, and a weekly business advisor that reads your numbers and tells you what to do next. Set once. Runs forever.',
+    visual: 'dashboard',
+  },
+]
 
-  if (!mounted) return <div style={{ minHeight: '100vh', background: '#080808' }} />
-  return <Home onStart={() => router.push('/onboard')} onLogin={() => router.push('/login')} />
-}
-function Home({ onStart, onLogin }) {
-  const features = [
-    { icon: '⚡', tag: 'Instant', title: 'Live in Minutes', body: 'Fill out one form. Your branded booking page, calendar, and SMS confirmations go live automatically. No tech skills, no setup fee.' },
-    { icon: '🤖', tag: 'AI-Powered', title: 'AI Booking Agent', body: 'Miss a call? Your AI texts back instantly, qualifies the client, and books the cut while you stay focused on the chair in front of you.' },
-    { icon: '📅', tag: 'Automated', title: 'Appointment Reminders', body: 'Smart 24-hour and 1-hour SMS reminders go out automatically. Clients confirm or reschedule with a tap. No-shows drop immediately.' },
-    { icon: '💰', tag: 'Revenue', title: 'Slow-Day Deals', body: 'Tuesday looking empty? AI writes a deal, posts to your IG, and texts your regulars. Most shops fill 2-3 extra chairs per week on autopilot.' },
-    { icon: '⭐', tag: 'Reputation', title: 'Google Reviews on Autopilot', body: 'Auto-request reviews after every cut. Clients tap through in 10 seconds. Your Google rating climbs while you work.' },
-    { icon: '📊', tag: 'Insights', title: 'Business Advisor', body: 'Your AI reads your numbers every week and tells you exactly what to do next — like having a business coach who actually gets the chair.' },
-  ]
+const STEPS = [
+  {
+    n: '1',
+    title: 'Sign up in 5 minutes',
+    body: 'Drop in your shop name, services, hours, and your number. Pick a template. Your branded booking page goes live and your business number gets wired up for two-way SMS. No installer, no rep call.',
+  },
+  {
+    n: '2',
+    title: 'Share the link. Clients book themselves.',
+    body: "Your link goes in your Instagram bio, your Google profile, your business cards. Clients tap, pick a service, pick a time, get an instant SMS confirmation. You see the booking on your phone before they've put theirs down.",
+  },
+  {
+    n: '3',
+    title: 'The AI handles the rest in SMS',
+    body: 'Reminders, reschedules, cancellations, missed-call follow-ups, win-backs — all over text, all in your voice. Clients never leave the thread. You stay in the chair. The AI flags anything it can\'t handle so you only see what matters.',
+  },
+]
 
-  const types = [
-    { emoji: '✂️', label: 'Solo Barbers' },
-    { emoji: '💈', label: 'Barbershops' },
-    { emoji: '👥', label: 'Booth Renters' },
-    { emoji: '💇', label: 'Hair Salons' },
-    { emoji: '💅', label: 'Nail Studios' },
-    { emoji: '🎨', label: 'Tattoo Artists' },
-  ]
+const FAQ = [
+  {
+    q: 'How long does setup actually take?',
+    a: 'Under five minutes. You fill out one form — shop name, services, hours, number. Your branded booking page goes live, your SMS number gets wired up, and you can take your first booking the same afternoon. No rep call, no installer.',
+  },
+  {
+    q: 'Do I need a credit card to start the trial?',
+    a: "No. Email address only. We don't ask for a card until day 30, and only if you want to keep going. If the trial doesn't earn its keep, you walk — no charge, no friction.",
+  },
+  {
+    q: 'Do you take a cut of bookings or tips?',
+    a: "Never. Flat $49/mo. No per-booking fee, no commission on services, no skim on tips. Whatever the client pays, you keep. That's the whole deal.",
+  },
+  {
+    q: 'Can I cancel anytime?',
+    a: 'Yes. No contracts, no cancellation fee. Cancel from the dashboard in two clicks. Your booking page stays live until your billing period ends, and you can export every client and appointment to a CSV on the way out.',
+  },
+  {
+    q: 'Who is this actually built for?',
+    a: 'Solo barbers and small shops first. Also fits estheticians, lash and brow artists, nail techs, laser hair techs, massage therapists, and tattoo artists — any one-to-one service where a client books a chair, a bed, or a station with a specific provider.',
+  },
+  {
+    q: 'What makes the AI receptionist different from Booksy or Squire?',
+    a: 'Theirs send your client to an app or a portal. Ours answers inside the SMS thread your client is already in. They text "can I move to Friday" — the AI moves it, confirms it, and never asks them to log in. That single difference is why clients actually use it.',
+  },
+]
 
-  const plans = [
-    {
-      name: 'Solo', price: '$49', period: '/mo', hot: true,
-      desc: 'One flat price. Everything included. Beat every other booking tool on price and on what it does.',
-      features: ['Your own branded booking page', 'SMS confirmations + reminders', 'SMS-native AI virtual assistant', 'AI missed-call text-back', 'Slow-day deal generator', 'Reviews collection (in-app or Google)', 'No booking fees, no cut of tips'],
-    },
-  ]
-
-  const faqs = [
-    { q: 'How long does setup take?', a: 'Under 5 minutes. Fill out one form with your shop info, services, and hours — your booking page and SMS confirmations go live automatically.' },
-    { q: 'Do I need a credit card to start?', a: 'No. Start your 30-day free trial with just an email. We only ask for a card if you decide to keep going after the trial.' },
-    { q: 'Do you take a cut of my tips or bookings?', a: 'Never. Flat $49/mo — no booking fees, no commission on tips, no hidden charges. What clients pay, you keep.' },
-    { q: 'Can I cancel anytime?', a: 'Yes. No contracts, no cancellation fees. Your booking page stays up until the end of your billing period. Your data is always yours to export.' },
-    { q: 'Will my existing clients have to do anything?', a: 'Nope. Your new booking link drops into your Instagram bio or wherever you share it. Clients just tap and book — no app download, no account creation.' },
-    { q: 'Does it work for my shop type?', a: 'Built first for solo barbers and small barbershops. Also works great for hair salons, nail studios, tattoo artists, and booth renters — any chair-based service business.' },
-  ]
-
-  const S = {
-    nav: { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '22px 60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-dim)', background: 'rgba(8,8,8,0.92)', backdropFilter: 'blur(12px)' },
-    section: { padding: '120px 60px' },
-  }
+export default function Page() {
+  // Server-side redirect for logged-in users
+  const cookieStore = cookies()
+  const hasAuth = cookieStore.getAll().some((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'))
+  if (hasAuth) redirect('/dashboard')
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--black)', overflowX: 'hidden' }}>
+    <div className="marketing">
+      <NavBar />
 
-      {/* ── NAV ── */}
-      <nav style={S.nav}>
-        <div>
-          <div className="cinzel" style={{ fontSize: 17, letterSpacing: '.35em', color: 'var(--gold)' }}>ServiceMind</div>
-          <div style={{ fontSize: 9, letterSpacing: '.3em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 1 }}>The Booking System for Barbers</div>
-        </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <a href="#features" style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted)', padding: '0 12px', transition: 'color .2s' }}
-            onMouseOver={e => e.target.style.color = 'var(--gold)'}
-            onMouseOut={e => e.target.style.color = 'var(--muted)'}>Features</a>
-          <a href="#pricing" style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted)', padding: '0 12px', transition: 'color .2s' }}
-            onMouseOver={e => e.target.style.color = 'var(--gold)'}
-            onMouseOut={e => e.target.style.color = 'var(--muted)'}>Pricing</a>
-          <button onClick={onLogin} className="btn-ghost" style={{ padding: '10px 22px', fontSize: 10 }}>Log In</button>
-          <button onClick={onStart} className="btn-gold" style={{ padding: '10px 22px', fontSize: 10 }}>Start Free</button>
-        </div>
-      </nav>
+      {/* HERO ──────────────────────────────────────── */}
+      <section className="section" style={{ paddingTop: 64, paddingBottom: 'var(--space-section-lg)' }}>
+        <div className="container">
+          <div className="hero-grid">
+            <div className="hero-copy">
+              <div className="eyebrow-mono" style={{ marginBottom: 20 }}>
+                Built for solo barbers, estheticians, lash &amp; nail techs, and any chair-based shop
+              </div>
+              <h1 style={{ marginBottom: 24 }}>Your chair. Your phone. Booked.</h1>
+              <p style={{ fontSize: 18, color: 'var(--ink-5)', maxWidth: 540, lineHeight: 1.6, marginBottom: 32 }}>
+                A branded booking page plus an SMS-native AI receptionist that books, reschedules, and reminds —
+                right inside the text thread your clients already use. No portal. No app to download. No fees per booking.
+              </p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 28 }}>
+                <a href="/onboard" className="btn-primary btn-primary--lg">Start free for 30 days</a>
+                <a href="/book/leed-barber-shop" className="btn-secondary btn-primary--lg">See a live booking page</a>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--ink-4)', marginBottom: 32 }}>
+                $49/mo · 30-day free trial · No card required
+              </div>
 
-      {/* ── HERO ── */}
-      <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', padding: '140px 60px 100px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '20%', right: '-5%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '10%', left: '-5%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.04) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              {/* Trust strip — scroll-snap row of pill chips */}
+              <div className="trust-strip">
+                {TRUST_CHIPS.map(([head, sub]) => (
+                  <div key={head} className="trust-chip">
+                    <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-6)' }}>{head}</span>
+                    <span style={{ fontSize: 11, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{sub}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-        <div style={{ maxWidth: 800, position: 'relative' }}>
-          <div className="eyebrow" style={{ marginBottom: 32 }}>For Solo Barbers &amp; Small Shops</div>
-          <h1 className="cormorant" style={{ fontSize: 'clamp(60px,7vw,108px)', fontWeight: 300, lineHeight: 1.0, marginBottom: 36, letterSpacing: '-.01em' }}>
-            The Booking<br />
-            <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>System Built</em><br />
-            for Barbers.
-          </h1>
-          <p style={{ fontSize: 17, color: 'var(--text-2)', lineHeight: 1.9, maxWidth: 540, marginBottom: 56 }}>
-            Your own branded booking page, SMS confirmations that feel personal, AI that fills your slow days — all for $49/mo. No booking fees. No cut of your tips. Cancel anytime.
-          </p>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 60 }}>
-            <button onClick={onStart} className="btn-gold" style={{ padding: '18px 52px', fontSize: 12 }}>Start 30-Day Free Trial</button>
-            <button onClick={onLogin} className="btn-ghost" style={{ padding: '18px 32px', fontSize: 11 }}>I Already Have an Account</button>
+            <div className="hero-visual">
+              <HeroSmsMockup width={340} />
+            </div>
           </div>
+        </div>
+      </section>
 
-          {/* Social proof */}
-          <div style={{ display: 'flex', gap: 48, paddingTop: 48, borderTop: '1px solid var(--border-dim)' }}>
-            {[['30 Day', 'Free Trial'], ['No Card', 'Required'], ['5 Min', 'Setup'], ['Cancel', 'Anytime']].map(([a, b]) => (
-              <div key={b}>
-                <div className="cormorant" style={{ fontSize: 30, fontWeight: 300, color: 'var(--gold)', lineHeight: 1 }}>{a}</div>
-                <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 4 }}>{b}</div>
+      {/* WHAT IT DOES ──────────────────────────────── */}
+      <section id="what" className="section section--light">
+        <div className="container">
+          <div style={{ marginBottom: 56, maxWidth: 720 }}>
+            <div className="eyebrow-mono" style={{ marginBottom: 16 }}>What ServiceMind does</div>
+            <h2 style={{ marginBottom: 16 }}>Three things. Done right.</h2>
+            <p style={{ fontSize: 17, color: 'var(--ink-2)', opacity: 0.75 }}>
+              No bloat. No 40-tab dashboard. The work that actually keeps your chair full.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 96 }}>
+            {PILLARS.map((p, i) => {
+              const visual =
+                p.visual === 'booking' ? <BookingPageMockup width={280} /> :
+                p.visual === 'reminder' ? <ReminderThreadMockup width={280} /> :
+                <DashboardMockup width="100%" />
+              const reverse = i % 2 === 1
+              return (
+                <div key={p.eyebrow} className="pillar-row" style={{ flexDirection: reverse ? 'row-reverse' : 'row' }}>
+                  <div className="pillar-copy">
+                    <div className="eyebrow-mono" style={{ marginBottom: 14 }}>Pillar {p.eyebrow}</div>
+                    <h3 style={{ marginBottom: 14 }}>{p.title}</h3>
+                    <p style={{ fontSize: 16, color: 'var(--ink-2)', opacity: 0.85, lineHeight: 1.65 }}>{p.body}</p>
+                  </div>
+                  <div className="pillar-visual">{visual}</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS ─────────────────────────────── */}
+      <section id="how" className="section">
+        <div className="container">
+          <div style={{ marginBottom: 48, maxWidth: 720 }}>
+            <div className="eyebrow-mono" style={{ marginBottom: 16 }}>How it works</div>
+            <h2>Five minutes to live. Then it runs itself.</h2>
+          </div>
+          <div className="steps-grid">
+            {STEPS.map((s) => (
+              <div key={s.n} className="mk-card" style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', zIndex: 1 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    background: 'var(--brand)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 16,
+                  }}
+                >
+                  {s.n}
+                </div>
+                <h3 style={{ fontSize: 20 }}>{s.title}</h3>
+                <p style={{ fontSize: 15, color: 'var(--ink-5)', lineHeight: 1.6 }}>{s.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── SALON TYPES ── */}
-      <div style={{ padding: '0 60px 80px' }}>
-        <div style={{ display: 'flex', gap: 2 }}>
-          {types.map(t => (
-            <div key={t.label} style={{ flex: 1, background: 'var(--dark-2)', padding: '24px 20px', textAlign: 'center', border: '1px solid var(--border-dim)', cursor: 'default', transition: 'border-color .2s' }}
-              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--border)'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border-dim)'}>
-              <div style={{ fontSize: 26, marginBottom: 10 }}>{t.emoji}</div>
-              <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-2)' }}>{t.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── FEATURES ── */}
-      <section id="features" style={{ ...S.section, borderTop: '1px solid var(--border-dim)' }}>
-        <div style={{ marginBottom: 72 }}>
-          <div className="eyebrow" style={{ marginBottom: 24 }}>What ServiceMind Does</div>
-          <h2 className="cormorant" style={{ fontSize: 'clamp(40px,4.5vw,72px)', fontWeight: 300, lineHeight: 1.1 }}>
-            More than booking.<br />
-            <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>Runs your chair for you.</em>
-          </h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 2 }}>
-          {features.map((f, i) => (
-            <div key={i} className="card" style={{ padding: '44px 40px', cursor: 'default', transition: 'border-color .3s, transform .2s' }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(-3px)' }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border-dim)'; e.currentTarget.style.transform = 'none' }}>
-              <div style={{ marginBottom: 24 }}>
-                <span style={{ fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--gold)', border: '1px solid var(--border)', padding: '3px 10px' }}>{f.tag}</span>
-              </div>
-              <div style={{ fontSize: 28, marginBottom: 16 }}>{f.icon}</div>
-              <div className="cinzel" style={{ fontSize: 13, letterSpacing: '.12em', color: 'var(--text)', marginBottom: 14 }}>{f.title}</div>
-              <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.85 }}>{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── AI CALLOUT ── */}
-      <section style={{ margin: '0 60px', background: 'var(--dark)', border: '1px solid var(--border)', padding: '80px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(to right, var(--gold), transparent)' }} />
-        <div style={{ position: 'absolute', right: 80, top: '50%', transform: 'translateY(-50%)', opacity: .04, fontFamily: 'Cinzel', fontSize: 200, fontWeight: 400, color: 'var(--gold)', userSelect: 'none', pointerEvents: 'none' }}>AI</div>
-        <div style={{ maxWidth: 600, position: 'relative' }}>
-          <div className="eyebrow" style={{ marginBottom: 28 }}>The AI Layer</div>
-          <h2 className="cormorant" style={{ fontSize: 'clamp(36px,4vw,64px)', fontWeight: 300, lineHeight: 1.1, marginBottom: 28 }}>
-            It books, texts, and fills<br />
-            your <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>slow days</em> — automatically.
-          </h2>
-          <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.9, marginBottom: 40 }}>
-            While you're in the chair, ServiceMind's AI is working. It answers missed calls, confirms bookings by text, nudges no-shows, spots slow days early, and writes promos that actually bring people in.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {['AI texts back missed calls and books the appointment in real time', 'AI spots slow days early and writes promo texts to fill your chair', 'AI sends reminder + confirmation SMS that feel like you wrote them', 'AI asks for Google reviews at the perfect moment after every cut'].map((item, i) => (
-              <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <span style={{ color: 'var(--gold)', fontSize: 12, marginTop: 2, flexShrink: 0 }}>✦</span>
-                <span style={{ fontSize: 14, color: 'var(--text-2)' }}>{item}</span>
-              </div>
-            ))}
+      {/* COMPARISON ───────────────────────────────── */}
+      <section id="pricing" className="section section--light">
+        <div className="container">
+          <div style={{ marginBottom: 48, maxWidth: 720 }}>
+            <div className="eyebrow-mono" style={{ marginBottom: 16 }}>How we stack up</div>
+            <h2>The upgrade everyone&rsquo;s been waiting for.</h2>
+            <p style={{ fontSize: 16, color: 'var(--ink-2)', opacity: 0.7, marginTop: 12 }}>
+              $49/mo flat, no booking fees. Compared to what you&rsquo;re paying now.
+            </p>
+          </div>
+          <Comparison />
+          <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 24, opacity: 0.8 }}>
+            Competitor pricing reflects publicly listed rates as of 2026. Booksy effective cost includes typical per-booking fees on a 100-cut/month shop.
           </div>
         </div>
       </section>
 
-      {/* ── PRICING ── */}
-      <section id="pricing" style={S.section}>
-        <div style={{ marginBottom: 72 }}>
-          <div className="eyebrow" style={{ marginBottom: 24 }}>Pricing</div>
-          <h2 className="cormorant" style={{ fontSize: 'clamp(36px,4vw,64px)', fontWeight: 300 }}>
-            Simple, flat pricing.<br />
-            <em style={{ color: 'var(--gold)', fontStyle: 'italic' }}>No surprises.</em>
-          </h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20, maxWidth: 420, margin: '0 auto' }}>
-          {plans.map((p, i) => (
-            <div key={i} style={{ background: p.hot ? 'rgba(201,168,76,.04)' : 'var(--dark)', border: p.hot ? '1px solid var(--gold-dim)' : '1px solid var(--border-dim)', padding: '44px 36px', position: 'relative' }}>
-              {p.hot && (
-                <div className="cinzel" style={{ position: 'absolute', top: -1, left: 0, right: 0, textAlign: 'center', background: 'var(--gold)', color: 'var(--black)', fontSize: 9, letterSpacing: '.3em', padding: '6px', textTransform: 'uppercase' }}>
-                  Most Popular
-                </div>
-              )}
-              <div style={{ marginTop: p.hot ? 20 : 0 }}>
-                <div className="cinzel" style={{ fontSize: 12, letterSpacing: '.25em', color: 'var(--gold)', marginBottom: 20 }}>{p.name}</div>
-                <div className="cormorant" style={{ fontSize: 56, fontWeight: 300, lineHeight: 1, marginBottom: 8 }}>
-                  {p.price}<span style={{ fontSize: 18, color: 'var(--muted)' }}>{p.period}</span>
-                </div>
-                <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 32, lineHeight: 1.7 }}>{p.desc}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 36 }}>
-                  {p.features.map((f, j) => (
-                    <div key={j} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', fontSize: 13, color: 'var(--text-2)' }}>
-                      <span style={{ color: 'var(--gold)', fontSize: 10, marginTop: 2, flexShrink: 0 }}>✦</span>{f}
-                    </div>
-                  ))}
-                </div>
-                <button onClick={onStart} className={p.hot ? 'btn-gold' : 'btn-ghost'} style={{ width: '100%', textAlign: 'center' }}>
-                  Start 30-Day Free Trial
-                </button>
-              </div>
-            </div>
-          ))}
+      {/* FAQ ────────────────────────────────────── */}
+      <section id="faq" className="section">
+        <div className="container">
+          <div style={{ marginBottom: 48, maxWidth: 720, textAlign: 'center', marginLeft: 'auto', marginRight: 'auto' }}>
+            <div className="eyebrow-mono" style={{ marginBottom: 16, justifyContent: 'center', display: 'flex' }}>Questions</div>
+            <h2>Straight answers.</h2>
+          </div>
+          <FaqAccordion items={FAQ} />
         </div>
       </section>
 
-      {/* ── FAQ ── */}
-      <section style={{ ...S.section, borderTop: '1px solid var(--border-dim)', paddingBottom: 60 }}>
-        <div style={{ marginBottom: 60 }}>
-          <div className="eyebrow" style={{ marginBottom: 24 }}>Questions</div>
-          <h2 className="cormorant" style={{ fontSize: 48, fontWeight: 300 }}>Frequently asked</h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, maxWidth: 1000 }}>
-          {faqs.map((f, i) => (
-            <div key={i} className="card" style={{ padding: '32px' }}>
-              <div className="cinzel" style={{ fontSize: 11, letterSpacing: '.15em', color: 'var(--gold)', marginBottom: 12 }}>{f.q}</div>
-              <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.8 }}>{f.a}</p>
-            </div>
-          ))}
+      {/* CTA BAND ──────────────────────────────── */}
+      <section style={{ background: 'var(--brand)', padding: '56px 0' }}>
+        <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, textAlign: 'center' }}>
+          <h2 style={{ color: 'var(--ink-0)', fontSize: 'clamp(28px, 4vw, 40px)' }}>Stop chasing reschedules. Start in 5 minutes.</h2>
+          <a
+            href="/onboard"
+            style={{
+              background: 'var(--ink-0)',
+              color: '#fff',
+              padding: '16px 32px',
+              borderRadius: 8,
+              fontSize: 16,
+              fontWeight: 600,
+              display: 'inline-block',
+              transition: 'transform 150ms',
+            }}
+          >
+            Start free for 30 days →
+          </a>
+          <span style={{ fontSize: 13, color: 'rgba(14, 16, 20, 0.7)' }}>$49/mo after trial · No card required</span>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer style={{ borderTop: '1px solid var(--border-dim)', padding: '60px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 60 }}>
-        <div>
-          <div className="cinzel" style={{ fontSize: 18, letterSpacing: '.35em', color: 'var(--gold)', marginBottom: 6 }}>ServiceMind</div>
-          <div style={{ fontSize: 9, letterSpacing: '.3em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 20 }}>The Booking System for Barbers</div>
-          <p className="cormorant" style={{ fontSize: 16, fontStyle: 'italic', color: 'var(--muted)', lineHeight: 1.7, maxWidth: 280 }}>
-            "Every chair deserves a booking system that looks like yours."
-          </p>
-        </div>
-        <div>
-          <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.3em', color: 'var(--gold)', marginBottom: 20 }}>Platform</div>
-          {['Features', 'Pricing', 'Log In', 'Start Free Trial'].map(l => (
-            <div key={l} style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12, cursor: 'pointer', transition: 'color .2s' }}
-              onMouseOver={e => e.target.style.color = 'var(--gold)'}
-              onMouseOut={e => e.target.style.color = 'var(--muted)'}
-              onClick={() => l === 'Log In' ? onLogin() : l === 'Start Free Trial' ? onStart() : null}>{l}</div>
-          ))}
-        </div>
-        <div>
-          <div className="cinzel" style={{ fontSize: 10, letterSpacing: '.3em', color: 'var(--gold)', marginBottom: 20 }}>Built For</div>
-          {['Solo Barbers', 'Booth Renters', 'Barbershops', 'Hair Salons', 'Any Chair-Based Shop'].map(l => (
-            <div key={l} style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>{l}</div>
-          ))}
+      {/* FOOTER ─────────────────────────────────── */}
+      <footer style={{ background: 'var(--ink-1)', borderTop: '1px solid var(--ink-3)', padding: '48px 0 24px' }}>
+        <div className="container">
+          <div className="footer-grid">
+            <div>
+              <Wordmark size={20} />
+              <p style={{ fontSize: 13, color: 'var(--ink-4)', marginTop: 12, maxWidth: 280, lineHeight: 1.5 }}>
+                Built for the chair. Powered by the thread.
+              </p>
+            </div>
+            <div>
+              <div className="eyebrow-mono" style={{ marginBottom: 16 }}>Platform</div>
+              <a href="#what" style={{ display: 'block', fontSize: 14, color: 'var(--ink-5)', marginBottom: 10 }}>What it does</a>
+              <a href="#pricing" style={{ display: 'block', fontSize: 14, color: 'var(--ink-5)', marginBottom: 10 }}>Pricing</a>
+              <a href="/login" style={{ display: 'block', fontSize: 14, color: 'var(--ink-5)', marginBottom: 10 }}>Log in</a>
+              <a href="/onboard" style={{ display: 'block', fontSize: 14, color: 'var(--brand)' }}>Start Free →</a>
+            </div>
+            <div>
+              <div className="eyebrow-mono" style={{ marginBottom: 16 }}>Built for</div>
+              {['Solo barbers', 'Booth renters', 'Estheticians', 'Lash &amp; brow', 'Nail techs', 'Laser hair', 'Massage', 'Tattoo'].map((l) => (
+                <div key={l} style={{ fontSize: 14, color: 'var(--ink-5)', marginBottom: 8 }} dangerouslySetInnerHTML={{ __html: l }} />
+              ))}
+            </div>
+          </div>
+          <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--ink-3)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 12, color: 'var(--ink-4)' }}>
+            <span>© 2026 ServiceMind</span>
+            <span style={{ display: 'flex', gap: 16 }}>
+              <a href="/terms" style={{ color: 'var(--ink-4)' }}>Terms</a>
+              <a href="/privacy" style={{ color: 'var(--ink-4)' }}>Privacy</a>
+            </span>
+          </div>
         </div>
       </footer>
-      <div style={{ borderTop: '1px solid var(--border-dim)', padding: '20px 60px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 11, color: 'var(--muted)' }}>© 2026 ServiceMind · <a href="/terms" style={{ color: 'var(--muted)', textDecoration: 'none', marginLeft: 8 }}>Terms</a> · <a href="/privacy" style={{ color: 'var(--muted)', textDecoration: 'none', marginLeft: 8 }}>Privacy</a></div>
-        <div style={{ fontSize: 11, color: 'var(--muted)' }}>Built for the chair</div>
-      </div>
+
+      {/* Layout-specific styles */}
+      <style>{`
+        .marketing .hero-grid {
+          display: grid;
+          grid-template-columns: 7fr 5fr;
+          gap: 64px;
+          align-items: center;
+        }
+        .marketing .hero-visual {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .marketing .trust-strip {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding-bottom: 4px;
+          margin-left: -4px;
+          padding-left: 4px;
+        }
+        .marketing .trust-strip::-webkit-scrollbar { display: none; }
+        .marketing .trust-strip { scrollbar-width: none; }
+        .marketing .trust-chip {
+          flex-shrink: 0;
+          scroll-snap-align: start;
+          background: var(--ink-1);
+          border: 1px solid var(--ink-3);
+          border-radius: var(--r-pill);
+          padding: 10px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 130px;
+        }
+        .marketing .pillar-row {
+          display: flex;
+          gap: 80px;
+          align-items: center;
+        }
+        .marketing .pillar-copy { flex: 1; }
+        .marketing .pillar-visual {
+          flex: 1;
+          display: flex;
+          justify-content: center;
+        }
+        .marketing .steps-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
+          position: relative;
+        }
+        .marketing .footer-grid {
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr;
+          gap: 48px;
+        }
+        @media (max-width: 1024px) {
+          .marketing .hero-grid { grid-template-columns: 6fr 6fr; gap: 48px; }
+          .marketing .pillar-row { gap: 48px; }
+          .marketing .footer-grid { grid-template-columns: 1fr 1fr; gap: 36px; }
+        }
+        @media (max-width: 768px) {
+          .marketing .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+          .marketing .pillar-row { flex-direction: column !important; gap: 32px; }
+          .marketing .pillar-row .pillar-visual { width: 100%; }
+          .marketing .steps-grid { grid-template-columns: 1fr; }
+          .marketing .footer-grid { grid-template-columns: 1fr; gap: 32px; }
+        }
+      `}</style>
     </div>
   )
 }

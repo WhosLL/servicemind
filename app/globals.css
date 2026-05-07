@@ -126,3 +126,187 @@ img { max-width: 100%; }
   border-radius: var(--radius);
   position: relative;
 }
+
+/* ============================================================
+   MARKETING BRAND TOKENS (servicemind.io landing only)
+   Scoped via .marketing wrapper so product UI stays on its
+   existing Cinzel+Cormorant+gold tokens. Per brand.md.
+   ============================================================ */
+:root {
+  /* Neutral scale (warmer than pure black) */
+  --ink-0: #0E1014;
+  --ink-1: #161A21;
+  --ink-2: #1F252E;
+  --ink-3: #2A3340;
+  --ink-4: #5A6573;
+  --ink-5: #C7CDD6;
+  --ink-6: #F4F5F7;
+  --ink-7: #FFFFFF;
+
+  /* Brand — Signal Orange */
+  --brand: #FF5A1F;
+  --brand-hover: #E64A12;
+  --brand-tint: rgba(255, 90, 31, 0.10);
+
+  /* Marketing status */
+  --ok: #2BB673;
+  --warn: #E8A53A;
+  --warn-dim: rgba(232, 165, 58, 0.10);
+  --err: #E5484D;
+
+  /* Marketing type scale */
+  --fs-hero: clamp(40px, 6vw, 64px);
+  --fs-section: clamp(28px, 3.5vw, 40px);
+  --fs-subsection: clamp(18px, 1.8vw, 22px);
+  --fs-body: clamp(16px, 1.2vw, 17px);
+  --fs-caption: 12px;
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.01em;
+  --tracking-label: 0.08em;
+
+  /* Marketing shape */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  /* Marketing spacing */
+  --space-section-lg: 96px;
+  --space-section-sm: 64px;
+
+  /* Marketing font stacks (Geist via <link> in layout.js) */
+  --font-geist-sans: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-geist-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', monospace;
+}
+
+/* Marketing wrapper — applies Geist + dark-default tokens */
+.marketing {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  background: var(--ink-0);
+  color: var(--ink-5);
+  --bg: var(--ink-0);
+  --fg: var(--ink-5);
+  --fg-strong: var(--ink-6);
+  --border-mk: var(--ink-3);
+}
+
+/* Light section override — used on alternating bands */
+.marketing .section--light {
+  background: var(--ink-6);
+  color: var(--ink-2);
+  --bg: var(--ink-6);
+  --fg: var(--ink-2);
+  --fg-strong: var(--ink-0);
+  --border-mk: #E2E5EA;
+}
+
+.marketing .font-mono { font-family: var(--font-geist-mono), ui-monospace, monospace; }
+
+.marketing h1, .marketing h2, .marketing h3 {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 600;
+  color: var(--fg-strong);
+  letter-spacing: var(--tracking-snug);
+}
+.marketing h1 { font-size: var(--fs-hero); line-height: 1.05; letter-spacing: var(--tracking-tight); font-weight: 700; }
+.marketing h2 { font-size: var(--fs-section); line-height: 1.15; }
+.marketing h3 { font-size: var(--fs-subsection); line-height: 1.3; }
+
+.marketing .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+@media (max-width: 1024px) { .marketing .container { padding: 0 24px; } }
+@media (max-width: 640px) { .marketing .container { padding: 0 20px; } }
+
+.marketing .eyebrow-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+/* Wordmark — colored M inside Service[M]ind */
+.marketing .wordmark {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-strong);
+}
+.marketing .wordmark__m { color: var(--brand); }
+
+/* Buttons (marketing) */
+.marketing .btn-primary {
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  padding: 14px 24px;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: var(--tracking-snug);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  display: inline-block;
+  text-align: center;
+}
+.marketing .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255, 90, 31, 0.25); }
+.marketing .btn-primary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.marketing .btn-primary:active { transform: translateY(0); filter: brightness(0.98); }
+.marketing .btn-primary--lg { padding: 16px 28px; font-size: 16px; }
+
+.marketing .btn-secondary {
+  background: transparent;
+  color: var(--fg-strong);
+  border: 1px solid var(--border-mk);
+  padding: 13px 22px;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: var(--tracking-snug);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+  display: inline-block;
+  text-align: center;
+}
+.marketing .btn-secondary:hover { border-color: var(--brand); color: var(--brand); }
+.marketing .btn-secondary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.marketing .btn-full { width: 100%; }
+
+/* Card (marketing — distinct from product .card) */
+.marketing .mk-card {
+  background: var(--ink-1);
+  border: 1px solid var(--border-mk);
+  border-radius: 12px;
+  padding: 32px;
+}
+.marketing .section--light .mk-card { background: #fff; border-color: #E2E5EA; }
+@media (max-width: 640px) { .marketing .mk-card { padding: 24px; } }
+
+/* Section padding */
+.marketing .section {
+  padding-top: var(--space-section-lg);
+  padding-bottom: var(--space-section-lg);
+}
+@media (max-width: 1024px) { .marketing .section { padding-top: 64px; padding-bottom: 64px; } }
+@media (max-width: 640px) { .marketing .section { padding-top: 56px; padding-bottom: 56px; } }
+
+/* Reduced-motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .marketing *,
+  .marketing *::before,
+  .marketing *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
