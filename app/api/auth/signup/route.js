@@ -3,10 +3,13 @@ import { createClient } from '@supabase/supabase-js'
 let _supabaseAdmin
 function getAdmin() {
   if (!_supabaseAdmin) {
-    _supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) {
+      const missing = [!url && 'NEXT_PUBLIC_SUPABASE_URL', !key && 'SUPABASE_SERVICE_ROLE_KEY'].filter(Boolean).join(', ')
+      throw new Error(`Server misconfigured: ${missing} not set in this environment. Add to Vercel → Project → Settings → Environment Variables for the matching env (preview/production).`)
+    }
+    _supabaseAdmin = createClient(url, key)
   }
   return _supabaseAdmin
 }

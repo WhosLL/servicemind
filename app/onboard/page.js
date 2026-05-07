@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { sb } from '../../lib/supabase'
 import { TEMPLATE_LIST } from '../../lib/templates'
+import TemplatePreview from './_TemplatePreview'
 import '../globals.css'
 
 const TYPES = ['barbershop', 'nail', 'lash', 'hair', 'spa', 'tattoo', 'other']
@@ -63,6 +64,35 @@ function Wrap({ step, total, onBack, title, italic, sub, children, onNext, nextL
 const FL = ({ children }) => (
   <label style={{ fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', display: 'block', marginBottom: 7 }}>{children}</label>
 )
+
+// NOTE: Defined at module scope (NOT inside Onboard) so React doesn't remount
+// each row on every keystroke. The previous version was an inline component
+// inside Onboard's render — every state change recreated the component
+// identity, React unmounted/remounted, and the input lost focus per character.
+function SvcRow({ list, setList, idx, item, updateSvc, removeSvc }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, alignItems: 'center' }}>
+      <input className="input" placeholder="Service name" value={item.name} onChange={e => updateSvc(list, setList, idx, 'name', e.target.value)} style={{ padding: '10px 12px', fontSize: 12 }} />
+      <div style={{ position: 'relative' }}>
+        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: item.price ? 'var(--gold)' : 'var(--muted)', fontSize: 11, pointerEvents: 'none' }}>$</span>
+        <input className="input" type="number" placeholder="" value={item.price} onChange={e => updateSvc(list, setList, idx, 'price', e.target.value)} style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
+      </div>
+      <input className="input" type="number" placeholder="30" value={item.duration} onChange={e => updateSvc(list, setList, idx, 'duration', e.target.value)} style={{ padding: '10px 8px', fontSize: 12, textAlign: 'center' }} />
+      <button onClick={() => removeSvc(list, setList, idx)} disabled={list.length === 1} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: list.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, opacity: list.length === 1 ? 0.2 : 0.5, padding: 0 }}>×</button>
+    </div>
+  )
+}
+
+function SvcHeader() {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, padding: '0 2px 6px' }}>
+      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Service</span>
+      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Price (opt)</span>
+      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Mins</span>
+      <span />
+    </div>
+  )
+}
 
 export default function Onboard() {
   const router = useRouter()
@@ -218,27 +248,6 @@ export default function Onboard() {
   )
 
   // ========== STEP 2: Services ==========
-  const SvcRow = ({ list, setList, idx, item }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, alignItems: 'center' }}>
-      <input className="input" placeholder="Service name" value={item.name} onChange={e => updateSvc(list, setList, idx, 'name', e.target.value)} style={{ padding: '10px 12px', fontSize: 12 }} />
-      <div style={{ position: 'relative' }}>
-        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: item.price ? 'var(--gold)' : 'var(--muted)', fontSize: 11, pointerEvents: 'none' }}>$</span>
-        <input className="input" type="number" placeholder="" value={item.price} onChange={e => updateSvc(list, setList, idx, 'price', e.target.value)} style={{ padding: '10px 8px 10px 20px', fontSize: 12, textAlign: 'right' }} />
-      </div>
-      <input className="input" type="number" placeholder="30" value={item.duration} onChange={e => updateSvc(list, setList, idx, 'duration', e.target.value)} style={{ padding: '10px 8px', fontSize: 12, textAlign: 'center' }} />
-      <button onClick={() => removeSvc(list, setList, idx)} disabled={list.length === 1} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: list.length === 1 ? 'not-allowed' : 'pointer', fontSize: 16, opacity: list.length === 1 ? 0.2 : 0.5, padding: 0 }}>×</button>
-    </div>
-  )
-
-  const SvcHeader = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px 68px 28px', gap: 6, padding: '0 2px 6px' }}>
-      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)' }}>Service</span>
-      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Price (opt)</span>
-      <span style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'center' }}>Mins</span>
-      <span />
-    </div>
-  )
-
   if (step === 2) return (
     <Wrap {...wp(2)} title="Your" italic="Services." sub="Add your core services and optional add-ons. You can edit these later in your dashboard."
       onNext={() => {
@@ -252,7 +261,7 @@ export default function Onboard() {
         </div>
         <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SvcHeader />
-          {coreSvcs.map((s, i) => <SvcRow key={i} list={coreSvcs} setList={setCoreSvcs} idx={i} item={s} />)}
+          {coreSvcs.map((s, i) => <SvcRow key={i} list={coreSvcs} setList={setCoreSvcs} idx={i} item={s} updateSvc={updateSvc} removeSvc={removeSvc} />)}
           <button onClick={() => addSvc(coreSvcs, setCoreSvcs)} style={{ background: 'none', border: '1px dashed var(--border-dim)', color: 'var(--muted)', padding: '8px', fontSize: 11, cursor: 'pointer', letterSpacing: '.15em', textTransform: 'uppercase', marginTop: 2 }}>+ Add Service</button>
         </div>
       </div>
@@ -264,7 +273,7 @@ export default function Onboard() {
         </div>
         <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <SvcHeader />
-          {addons.map((s, i) => <SvcRow key={i} list={addons} setList={setAddons} idx={i} item={s} />)}
+          {addons.map((s, i) => <SvcRow key={i} list={addons} setList={setAddons} idx={i} item={s} updateSvc={updateSvc} removeSvc={removeSvc} />)}
           <button onClick={() => addSvc(addons, setAddons)} style={{ background: 'none', border: '1px dashed var(--border-dim)', color: 'var(--muted)', padding: '8px', fontSize: 11, cursor: 'pointer', letterSpacing: '.15em', textTransform: 'uppercase', marginTop: 2 }}>+ Add Add-On</button>
         </div>
       </div>
@@ -273,34 +282,17 @@ export default function Onboard() {
 
   // ========== STEP 3: Pick Your Style (template) ==========
   if (step === 3) return (
-    <Wrap {...wp(3)} title="Pick Your" italic="Style." sub="Choose the look of your booking page. You can switch templates anytime from your dashboard."
+    <Wrap {...wp(3)} title="Pick Your" italic="Style." sub="Each preview shows roughly how your booking page will look — fonts, colors, layout. Pick one, you can switch anytime from your dashboard."
       onNext={() => { setErr(''); setStep(4) }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-        {TEMPLATE_LIST.map(tpl => {
-          const selected = templateId === tpl.id
-          return (
-            <button key={tpl.id} onClick={() => setTemplateId(tpl.id)}
-              style={{
-                padding: 0,
-                background: 'transparent',
-                border: `2px solid ${selected ? 'var(--gold)' : 'var(--border-dim)'}`,
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all .15s',
-                overflow: 'hidden',
-              }}>
-              <div style={{ height: 90, display: 'flex' }}>
-                {tpl.swatchColors.map((c, i) => (
-                  <div key={i} style={{ flex: 1, background: c }} />
-                ))}
-              </div>
-              <div style={{ padding: '14px 14px 16px' }}>
-                <div style={{ fontSize: 13, color: selected ? 'var(--gold)' : 'var(--text)', fontWeight: 500, marginBottom: 5 }}>{tpl.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.55 }}>{tpl.description}</div>
-              </div>
-            </button>
-          )
-        })}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+        {TEMPLATE_LIST.map(tpl => (
+          <TemplatePreview
+            key={tpl.id}
+            id={tpl.id}
+            selected={templateId === tpl.id}
+            onClick={() => setTemplateId(tpl.id)}
+          />
+        ))}
       </div>
     </Wrap>
   )

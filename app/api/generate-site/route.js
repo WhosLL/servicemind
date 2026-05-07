@@ -3,10 +3,13 @@ import { createClient } from '@supabase/supabase-js'
 let _sb
 function getSb() {
   if (!_sb) {
-    _sb = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) {
+      const missing = [!url && 'NEXT_PUBLIC_SUPABASE_URL', !key && 'SUPABASE_SERVICE_ROLE_KEY'].filter(Boolean).join(', ')
+      throw new Error(`Server misconfigured: ${missing} not set in this environment.`)
+    }
+    _sb = createClient(url, key)
   }
   return _sb
 }
