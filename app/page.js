@@ -10,10 +10,10 @@ import FaqAccordion from './_components/landing/FaqAccordion'
 import Comparison from './_components/landing/Comparison'
 
 const TRUST_CHIPS = [
-  ['30 Day', 'Free Trial'],
+  ['$5', 'Starter Credit'],
   ['No Card', 'Required'],
   ['5 Min', 'Setup'],
-  ['$49', 'Flat — No Booking Fees'],
+  ['$0.05', 'Per Text — No Subscription'],
 ]
 
 const PILLARS = [
@@ -61,16 +61,20 @@ const FAQ = [
     a: 'Under five minutes. You fill out one form — shop name, services, hours, number. Your branded booking page goes live, your SMS number gets wired up, and you can take your first booking the same afternoon. No rep call, no installer.',
   },
   {
-    q: 'Do I need a credit card to start the trial?',
-    a: "No. Email address only. We don't ask for a card until day 30, and only if you want to keep going. If the trial doesn't earn its keep, you walk — no charge, no friction.",
+    q: 'Do I need a credit card to sign up?',
+    a: "No. Email address only. You get $5 in starter credit on the house — covers your first ~100 texts. You only enter a card when you want to top up, and only if the product is earning its keep. If it doesn't, you walk — no charge, no friction.",
+  },
+  {
+    q: 'How much does it actually cost?',
+    a: "$0.05 per outbound text. That's it. No subscription, no booking fees, no per-customer charge. A 10-customers-a-day shop sending ~700 texts a month pays about $35. Compare to Booksy at ~$60–100 effective for the same shop.",
   },
   {
     q: 'Do you take a cut of bookings or tips?',
-    a: "Never. Flat $49/mo. No per-booking fee, no commission on services, no skim on tips. Whatever the client pays, you keep. That's the whole deal.",
+    a: "Never. Our only revenue is the $0.05 per text we send. No per-booking fee, no commission on services, no skim on tips. Whatever the client pays, you keep 100%.",
   },
   {
     q: 'Can I cancel anytime?',
-    a: 'Yes. No contracts, no cancellation fee. Cancel from the dashboard in two clicks. Your booking page stays live until your billing period ends, and you can export every client and appointment to a CSV on the way out.',
+    a: 'There\'s nothing to cancel — no subscription. Just stop topping up. Any unused credit stays in your account in case you come back. Export every client and appointment to CSV anytime from the dashboard.',
   },
   {
     q: 'Who is this actually built for?',
@@ -204,7 +208,7 @@ export default function Page() {
             <div className="eyebrow-mono" style={{ marginBottom: 16 }}>How we stack up</div>
             <h2>The upgrade everyone&rsquo;s been waiting for.</h2>
             <p style={{ fontSize: 16, color: 'var(--ink-2)', opacity: 0.7, marginTop: 12 }}>
-              $49/mo flat, no booking fees. Compared to what you&rsquo;re paying now.
+              $0.05 per text. No subscription. $5 starter credit. Compared to what you&rsquo;re paying now.
             </p>
           </div>
           <Comparison />
@@ -242,9 +246,9 @@ export default function Page() {
               transition: 'transform 150ms',
             }}
           >
-            Start free for 30 days →
+            Join early access →
           </a>
-          <span style={{ fontSize: 13, color: 'rgba(14, 16, 20, 0.7)' }}>$49/mo after trial · No card required</span>
+          <span style={{ fontSize: 13, color: 'rgba(14, 16, 20, 0.7)' }}>Early access · $0.05 per text · $5 starter credit at launch · No card required</span>
         </div>
       </section>
 
