@@ -95,10 +95,19 @@ export async function POST(req) {
         let clients = []
         if (trigger_type === 'win_back') {
           const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString()
-          const { data } = await sb.from('clients').select('*').eq('salon_id', salon_id).lt('last_visit_at', cutoff).not('phone', 'is', null).is('sms_opted_out_at', null)
+          // Marketing audience requires affirmative consent (sms_consent_at IS NOT NULL).
+          // Inbound-only clients (created in /api/sms/incoming without a consent
+          // stamp) are excluded — they texted in but never opted into marketing.
+          const { data } = await sb.from('clients').select('*')
+            .eq('salon_id', salon_id)
+            .lt('last_visit_at', cutoff)
+            .not('phone', 'is', null)
+            .not('sms_consent_at', 'is', null)
+            .is('sms_opted_out_at', null)
           clients = data || []
         } else if (trigger_type === 'slow_day') {
-          // Active clients (booked in last 90 days), opted-in, with phone, who don't already have an appointment today.
+          // Active clients (booked in last 90 days), opted-in with consent, with phone,
+          // who don't already have an appointment today.
           const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
           const today = new Date().toISOString().slice(0, 10)
           const { data: todayBookings } = await sb
@@ -111,6 +120,7 @@ export async function POST(req) {
           const { data } = await sb.from('clients').select('*')
             .eq('salon_id', salon_id)
             .not('phone', 'is', null)
+            .not('sms_consent_at', 'is', null)
             .is('sms_opted_out_at', null)
             .gte('last_visit_at', ninetyDaysAgo)
             .order('last_visit_at', { ascending: false })
