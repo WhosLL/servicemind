@@ -5,6 +5,7 @@ import {
   isQuietHours,
   prepareOutboundMessage,
 } from '../../../lib/sms-compliance'
+import { canSendSms } from '../../../lib/subscription'
 
 let _sb
 function getSb() {
@@ -49,9 +50,23 @@ export async function POST(req) {
 
     const { data: salon } = await sb
       .from('salons')
-      .select('twilio_phone_number, shop_name, state, city')
+      .select('twilio_phone_number, shop_name, state, city, subscription_status, trial_ends_at')
       .eq('id', salon_id)
       .single()
+
+    // Subscription gate: block sends if not on active/trialing/trial-in-window.
+    // Runs before opt-out etc. so an inactive shop can't waste compute on gates.
+    if (!canSendSms(salon)) {
+      await sb.from('sms_log').insert([{
+        salon_id, to_phone: to, message, trigger_type, campaign_id, appointment_id,
+        status: 'blocked_subscription',
+        error_message: `Subscription not active (status: ${salon?.subscription_status || 'none'})`,
+      }])
+      return Response.json({
+        error: 'Subscription required. Add a payment method to keep texting.',
+        subscription_status: salon?.subscription_status || null,
+      }, { status: 402 })
+    }
 
     if (!salon?.twilio_phone_number) {
       await sb.from('sms_log').insert([{
