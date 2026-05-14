@@ -5,6 +5,7 @@ import {
   isQuietHours,
   prepareOutboundMessage,
 } from '../../../lib/sms-compliance'
+import { COST_PER_SMS_CENTS, debitCredit, grantCredit, formatCents } from '../../../lib/sms-credit'
 
 let _sb
 function getSb() {
@@ -49,7 +50,7 @@ export async function POST(req) {
 
     const { data: salon } = await sb
       .from('salons')
-      .select('twilio_phone_number, shop_name, state, city')
+      .select('twilio_phone_number, shop_name, state, city, sms_credit_balance_cents')
       .eq('id', salon_id)
       .single()
 
@@ -133,6 +134,25 @@ export async function POST(req) {
       }
     }
 
+    // Credit gate: every outbound SMS costs COST_PER_SMS_CENTS. Pre-debit
+    // before calling Twilio so concurrent sends can't race the balance below 0.
+    // If Twilio fails, we refund via grantCredit so the shop isn't charged for
+    // a failed send.
+    const debit = await debitCredit(sb, salon_id, COST_PER_SMS_CENTS, 'sms_send', null)
+    if (!debit.success) {
+      await sb.from('sms_log').insert([{
+        salon_id, to_phone: cleanPhone, from_phone: salon.twilio_phone_number,
+        message, trigger_type, campaign_id, appointment_id,
+        status: 'blocked_no_credit',
+        error_message: `Insufficient SMS credit (balance: ${formatCents(debit.balanceAfterCents)})`,
+      }])
+      return Response.json({
+        error: 'Insufficient SMS credit. Add credit to keep texting.',
+        balance_cents: debit.balanceAfterCents,
+        cost_per_sms_cents: COST_PER_SMS_CENTS,
+      }, { status: 402 })
+    }
+
     const outboundBody = prepareOutboundMessage(message, salon, trigger_type)
 
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`
@@ -159,15 +179,26 @@ export async function POST(req) {
         message: outboundBody, trigger_type, campaign_id, appointment_id,
         twilio_sid: twilioData.sid, status: 'sent'
       }])
-      return Response.json({ success: true, sid: twilioData.sid, status: twilioData.status })
+      return Response.json({
+        success: true,
+        sid: twilioData.sid,
+        status: twilioData.status,
+        balance_cents: debit.balanceAfterCents,
+      })
     } else {
+      // Twilio rejected — refund the debit so the shop isn't charged for a non-send.
+      const refund = await grantCredit(sb, salon_id, COST_PER_SMS_CENTS, 'refund', `twilio_fail:${trigger_type || 'unknown'}`)
       const errMsg = twilioData.message || 'Unknown Twilio error'
       await sb.from('sms_log').insert([{
         salon_id, to_phone: cleanPhone, from_phone: salon.twilio_phone_number,
         message: outboundBody, trigger_type, campaign_id, appointment_id,
         status: 'failed', error_message: errMsg
       }])
-      return Response.json({ error: errMsg, code: twilioData.code }, { status: 400 })
+      return Response.json({
+        error: errMsg,
+        code: twilioData.code,
+        balance_cents: refund.balanceAfterCents,
+      }, { status: 400 })
     }
   } catch (err) {
     return Response.json({ error: err.message || 'Internal server error' }, { status: 500 })

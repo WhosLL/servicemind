@@ -105,6 +105,13 @@ export async function POST(req) {
     await sb.from('salon_services').insert(DEFAULT_SERVICES(salon.id))
     await sb.from('salon_campaigns').insert(DEFAULT_CAMPAIGNS(salon.id))
 
+    // Grant $5 starter SMS credit. Idempotent on (salon, starter_grant).
+    await sb.rpc('grant_sms_credit', {
+      p_salon_id: salon.id,
+      p_amount_cents: 500,
+      p_source: 'starter_grant',
+    })
+
     return Response.json({
       success: true,
       id: salon.id,

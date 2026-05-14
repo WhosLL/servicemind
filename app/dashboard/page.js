@@ -536,6 +536,75 @@ export default function Dashboard() {
 
   const Dot = ({ on }) => <div style={{ width: 7, height: 7, borderRadius: '50%', background: on ? 'var(--green)' : 'var(--muted)', flexShrink: 0 }} />
   const Badge = ({ text, color = 'var(--gold)' }) => <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color, border: `1px solid ${color}`, padding: '2px 8px', opacity: .9 }}>{text}</span>
+
+  function CreditPanel({ salon, onChange }) {
+    const [busy, setBusy] = useState(false)
+    const cents = salon.sms_credit_balance_cents ?? 0
+    const lowCredit = cents < 100  // < $1.00
+    const textsLeft = Math.floor(cents / 5)
+
+    async function topup(amountCents) {
+      if (busy) return
+      setBusy(true)
+      try {
+        const { data: { session } } = await sb().auth.getSession()
+        const res = await fetch('/api/billing/checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || ''}`,
+          },
+          body: JSON.stringify({ salon_id: salon.id, amount_cents: amountCents }),
+        })
+        const data = await res.json()
+        if (data.checkout_url) window.location.href = data.checkout_url
+        else alert(data.error || 'Top-up failed')
+      } catch (e) { alert('Top-up error: ' + e.message) }
+      setBusy(false)
+    }
+
+    return (
+      <div style={{ marginBottom: 16, padding: '12px 14px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${lowCredit ? 'var(--gold)' : 'var(--border-dim)'}` }}>
+        <div style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>SMS Credit</div>
+        <div style={{ fontSize: 20, color: lowCredit ? 'var(--gold)' : 'var(--text)', fontWeight: 300, lineHeight: 1.1 }}>
+          ${(cents / 100).toFixed(2)}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2, marginBottom: 10 }}>
+          {textsLeft} texts left · $0.05 each
+        </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[1000, 2500, 5000].map(amt => (
+            <button
+              key={amt}
+              onClick={() => topup(amt)}
+              disabled={busy}
+              style={{
+                flex: 1, padding: '6px 0', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase',
+                background: 'transparent', border: '1px solid var(--gold)', color: 'var(--gold)',
+                cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.5 : 1,
+              }}>
+              ${amt / 100}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // After a successful top-up Stripe sends the user back with ?topup=success.
+  // Refresh the salon row so the new balance shows.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !salon) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('topup') === 'success') {
+      ;(async () => {
+        const { data } = await sb().from('salons').select('*').eq('id', salon.id).single()
+        if (data) setSalon(data)
+        // Clean the URL
+        window.history.replaceState({}, '', window.location.pathname)
+      })()
+    }
+  }, [salon?.id])
   const Empty = ({ main, sub }) => (
     <div style={{ border: '1px dashed var(--border-dim)', padding: '80px 32px', textAlign: 'center' }}>
       <div className="cormorant" style={{ fontSize: 22, fontStyle: 'italic', color: 'var(--muted)', marginBottom: 8 }}>{main}</div>
@@ -572,6 +641,7 @@ export default function Dashboard() {
         <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-dim)' }}>
           <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3, fontWeight: 400 }}>{salon.shop_name}</div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14 }}>{salon.owner_name}</div>
+          <CreditPanel salon={salon} onChange={(updated) => setSalon(updated)} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial'} />
             <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>{salon.subscription_status}</span>

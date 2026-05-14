@@ -105,6 +105,13 @@ export async function POST(req) {
 
       await supabaseAdmin.from('salon_campaigns').insert(DEFAULT_CAMPAIGNS(salonId))
 
+      // Grant $5 starter SMS credit. Idempotent on (salon, starter_grant).
+      await supabaseAdmin.rpc('grant_sms_credit', {
+        p_salon_id: salonId,
+        p_amount_cents: 500,
+        p_source: 'starter_grant',
+      })
+
       return Response.json({ success: true, user_id: userId, salon: salon[0] })
     }
 
