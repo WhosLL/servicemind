@@ -10,8 +10,10 @@ const COLS = [
 ]
 
 const ROWS = [
-  { label: 'Price', sm: '$49/mo flat', booksy: '~$60–100 effective', ghl: '$97–$497/mo', squire: '$30–$120/chair', mindbody: '$139–$259/mo+', highlightSm: true },
+  { label: 'Price', sm: '$0.05 / text', booksy: '~$60–100 effective', ghl: '$97–$497/mo', squire: '$30–$120/chair', mindbody: '$139–$259/mo+', highlightSm: true },
+  { label: 'Subscription', sm: 'None — pay as you send', booksy: '$30+/mo', ghl: '$97+/mo', squire: '$30+/mo', mindbody: '$139+/mo' },
   { label: 'Booking fees', sm: 'None', booksy: '~$1.50–$3.50 / booking', ghl: 'DIY', squire: 'On add-ons', mindbody: 'On add-ons', flag: ['booksy'] },
+  { label: 'Starter credit', sm: '$5 — no card', booksy: false, ghl: false, squire: false, mindbody: false, highlightSm: true },
   { label: 'SMS confirmations included', sm: true, booksy: 'Add-on', ghl: 'BYO Twilio', squire: true, mindbody: 'Add-on' },
   { label: 'AI receptionist', sm: true, booksy: false, ghl: 'Build it yourself', squire: false, mindbody: false },
   { label: 'In-thread reschedule (no portal)', sm: true, booksy: false, ghl: false, squire: false, mindbody: false, highlightSm: true },

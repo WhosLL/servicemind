@@ -6,18 +6,23 @@ import { TEMPLATE_LIST } from '../../lib/templates'
 import TemplatePreview from './_TemplatePreview'
 import '../globals.css'
 
-const TYPES = ['barbershop', 'nail', 'lash', 'hair', 'spa', 'tattoo', 'other']
-
-const VIBE_SUGGESTIONS = [
-  'clean modern minimalist',
-  'bold urban street',
-  'classic vintage barbershop',
-  'luxury high-end',
-  'beach coastal relaxed',
-  'rugged mountain cabin',
+const SHOP_TYPES = [
+  { id: 'barbershop',   label: 'Barbershop',          emoji: '💈' },
+  { id: 'hair',         label: 'Hair Salon',          emoji: '💇' },
+  { id: 'nail',         label: 'Nail Salon',          emoji: '💅' },
+  { id: 'lash',         label: 'Lash / Brow',         emoji: '👁️' },
+  { id: 'esthetician',  label: 'Esthetician / Skincare', emoji: '✨' },
+  { id: 'laser',        label: 'Laser Hair Removal',  emoji: '🔆' },
+  { id: 'massage',      label: 'Massage Therapy',     emoji: '💆' },
+  { id: 'spa',          label: 'Spa',                 emoji: '🧖' },
+  { id: 'makeup',       label: 'Makeup Artist',       emoji: '💄' },
+  { id: 'tattoo',       label: 'Tattoo / Piercing',   emoji: '🖋️' },
+  { id: 'mobile',       label: 'Mobile Service',      emoji: '🚐' },
+  { id: 'tanning',      label: 'Tanning',             emoji: '☀️' },
+  { id: 'other',        label: 'Other',               emoji: '➕' },
 ]
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 6
 
 function Progress({ step, total, onBack }) {
   return (
@@ -99,15 +104,27 @@ export default function Onboard() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
-  const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', password: '', city: '', state: '', address: '', salon_type: 'barbershop' })
+  const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', password: '', city: '', state: '', address: '', salon_type: '' })
   const [coreSvcs, setCoreSvcs] = useState([{ name: '', price: '', duration: '30' }])
   const [addons, setAddons] = useState([{ name: '', price: '', duration: '0' }])
   const [templateId, setTemplateId] = useState('luxury')
   const [heroImageUrl, setHeroImageUrl] = useState('')
   const [instagram, setInstagram] = useState('')
-  const [vibe, setVibe] = useState('')
-  const [siteContent, setSiteContent] = useState(null)
   const [createdSalon, setCreatedSalon] = useState(null)
+
+  // Check if an email is already registered before user wastes time on later steps.
+  const checkEmailTaken = async (email) => {
+    try {
+      const res = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      if (!res.ok) return false   // fail open — let server-side signup catch it later
+      const data = await res.json()
+      return !!data.exists
+    } catch { return false }
+  }
 
   const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   const goBack = () => step === 1 ? router.push('/') : (setStep(s => s - 1), setErr(''))
@@ -119,7 +136,7 @@ export default function Onboard() {
   const addSvc = (list, setList) => setList([...list, { name: '', price: '', duration: '30' }])
   const removeSvc = (list, setList, idx) => list.length > 1 ? setList(list.filter((_, i) => i !== idx)) : null
 
-  // STEP 4 trigger: signup + create salon + generate site copy
+  // STEP 5 trigger: signup + create salon
   const finalizeSignup = async () => {
     setLoading(true); setErr('')
     try {
@@ -144,7 +161,7 @@ export default function Onboard() {
           salonData: {
             shop_name: info.shop_name, owner_name: info.owner_name, phone: info.phone,
             email: info.email, city: info.city, state: info.state, address: info.address,
-            salon_type: info.salon_type, slug, vibe,
+            salon_type: info.salon_type, slug,
             template_id: templateId,
             hero_image_url: heroImageUrl.trim() || null,
             instagram: igClean,
@@ -166,25 +183,7 @@ export default function Onboard() {
       // Sign in
       await sb().auth.signInWithPassword({ email: info.email, password: info.password })
       setCreatedSalon(result.salon)
-
-      // Generate site content (best-effort; not blocking on errors)
-      if (vibe.trim()) {
-        try {
-          const { data: { session } } = await sb().auth.getSession()
-          const genRes = await fetch('/api/generate-site', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-            body: JSON.stringify({
-              salon_id: result.salon?.id, vibe,
-              shop_name: info.shop_name, salon_type: info.salon_type,
-              city: info.city, state: info.state, owner_name: info.owner_name
-            })
-          })
-          const genData = await genRes.json()
-          setSiteContent(genData.site_content || null)
-        } catch {}
-      }
-      setStep(5)
+      setStep(6)
     } catch (e) { setErr(e.message || 'Setup failed.') }
     setLoading(false)
   }
@@ -196,7 +195,7 @@ export default function Onboard() {
       if (createdSalon?.id) {
         await sb().from('salons').update({ onboarded: true, onboarded_at: new Date().toISOString() }).eq('id', createdSalon.id)
       }
-      setStep(6)
+      setStep(7)
       setTimeout(() => router.push('/dashboard'), 2500)
     } catch (e) { setErr(e.message) }
     setLoading(false)
@@ -204,15 +203,52 @@ export default function Onboard() {
 
   const wp = (s) => ({ step: s, total: TOTAL_STEPS, onBack: goBack, loading, err })
 
-  // ========== STEP 1: Shop Info ==========
+  // ========== STEP 1: Shop Type ==========
   if (step === 1) return (
-    <Wrap {...wp(1)} title="Your Shop" italic="Info." sub="This powers your booking page, your dashboard login, and the AI receptionist."
+    <Wrap {...wp(1)} title="What kind of" italic="shop?" sub="Pick the closest fit. This shapes your booking page templates, the AI receptionist's tone, and which automations come pre-configured."
       onNext={() => {
+        if (!info.salon_type) { setErr('Pick a shop type to continue.'); return }
+        setErr(''); setStep(2)
+      }}
+      canNext={!!info.salon_type}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+        {SHOP_TYPES.map(t => {
+          const selected = info.salon_type === t.id
+          return (
+            <button key={t.id} onClick={() => set('salon_type', t.id)}
+              style={{
+                background: selected ? 'rgba(201,168,76,0.10)' : 'var(--dark-3)',
+                border: `1px solid ${selected ? 'var(--gold)' : 'var(--border-dim)'}`,
+                color: selected ? 'var(--gold)' : 'var(--text)',
+                padding: '20px 12px', cursor: 'pointer', textAlign: 'center',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                transition: 'border-color .15s, background .15s',
+              }}>
+              <span style={{ fontSize: 28, lineHeight: 1 }}>{t.emoji}</span>
+              <span style={{ fontSize: 12, letterSpacing: '.08em', fontWeight: 500 }}>{t.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </Wrap>
+  )
+
+  // ========== STEP 2: Shop Info ==========
+  if (step === 2) return (
+    <Wrap {...wp(2)} title="Your Shop" italic="Info." sub="This powers your booking page, your dashboard login, and the AI receptionist."
+      onNext={async () => {
         if (!info.shop_name.trim() || !info.owner_name.trim() || !info.phone.trim()) { setErr('Shop name, owner name, and phone are required.'); return }
         if (!info.email.trim()) { setErr('Email is required.'); return }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email.trim())) { setErr('Please enter a valid email address.'); return }
         if (!info.password || info.password.length < 8) { setErr('Password must be at least 8 characters.'); return }
-        setErr(''); setStep(2)
+        setLoading(true)
+        const taken = await checkEmailTaken(info.email.trim())
+        setLoading(false)
+        if (taken) {
+          setErr('An account with this email already exists. Try signing in instead, or use a different email.')
+          return
+        }
+        setErr(''); setStep(3)
       }}
       canNext={!!info.shop_name}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -228,12 +264,6 @@ export default function Onboard() {
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>You'll use this email & password to log into your dashboard.</div>
         </div>
         <div>
-          <FL>Salon Type</FL>
-          <select className="input" value={info.salon_type} onChange={e => set('salon_type', e.target.value)}>
-            {TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-          </select>
-        </div>
-        <div>
           <FL>Address (optional)</FL>
           <input className="input" placeholder="123 Main Street" value={info.address} onChange={e => set('address', e.target.value)} />
         </div>
@@ -247,12 +277,12 @@ export default function Onboard() {
     </Wrap>
   )
 
-  // ========== STEP 2: Services ==========
-  if (step === 2) return (
-    <Wrap {...wp(2)} title="Your" italic="Services." sub="Add your core services and optional add-ons. You can edit these later in your dashboard."
+  // ========== STEP 3: Services ==========
+  if (step === 3) return (
+    <Wrap {...wp(3)} title="Your" italic="Services." sub="Add your core services and optional add-ons. You can edit these later in your dashboard."
       onNext={() => {
         if (!coreSvcs.some(s => s.name.trim())) { setErr('Add at least one core service.'); return }
-        setErr(''); setStep(3)
+        setErr(''); setStep(4)
       }}>
       <div style={{ border: '1px solid var(--border-dim)', background: 'var(--dark-3)', marginBottom: 20 }}>
         <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(201,168,76,0.06)' }}>
@@ -280,10 +310,10 @@ export default function Onboard() {
     </Wrap>
   )
 
-  // ========== STEP 3: Pick Your Style (template) ==========
-  if (step === 3) return (
-    <Wrap {...wp(3)} title="Pick Your" italic="Style." sub="Each preview shows roughly how your booking page will look — fonts, colors, layout. Pick one, you can switch anytime from your dashboard."
-      onNext={() => { setErr(''); setStep(4) }}>
+  // ========== STEP 4: Pick Your Style (template) ==========
+  if (step === 4) return (
+    <Wrap {...wp(4)} title="Pick Your" italic="Style." sub="Each preview shows roughly how your booking page will look — fonts, colors, layout. Pick one, you can switch anytime from your dashboard."
+      onNext={() => { setErr(''); setStep(5) }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
         {TEMPLATE_LIST.map(tpl => (
           <TemplatePreview
@@ -297,12 +327,12 @@ export default function Onboard() {
     </Wrap>
   )
 
-  // ========== STEP 4: Personalize + Vibe + Sign-up trigger ==========
-  if (step === 4) return (
-    <Wrap {...wp(4)} title="Make it" italic="Yours." sub="Add a photo, link your Instagram, and tell us your vibe. The AI will write your booking page copy when you continue."
+  // ========== STEP 5: Personalize + Sign-up trigger ==========
+  if (step === 5) return (
+    <Wrap {...wp(5)} title="Make it" italic="Yours." sub="Add a photo and link your Instagram. You can edit either later from your dashboard."
       onNext={finalizeSignup}
       loading={loading}
-      nextLabel={loading ? 'Creating your shop...' : 'Generate & Activate →'}
+      nextLabel={loading ? 'Creating your shop...' : 'Activate →'}
       canNext={true}>
       <div style={{ marginBottom: 22 }}>
         <FL>Shop Photo URL (optional)</FL>
@@ -313,7 +343,7 @@ export default function Onboard() {
         </div>
       </div>
 
-      <div style={{ marginBottom: 22 }}>
+      <div style={{ marginBottom: 8 }}>
         <FL>Instagram Handle (optional)</FL>
         <input className="input" placeholder="@yourshop"
           value={instagram} onChange={e => setInstagram(e.target.value)} />
@@ -321,29 +351,12 @@ export default function Onboard() {
           Adds a "Follow on Instagram" button under your shop name. With or without the @, or paste the full IG URL.
         </div>
       </div>
-
-      <div style={{ marginBottom: 8 }}>
-        <FL>Describe your vibe (optional)</FL>
-        <input className="input" placeholder="e.g. clean modern, bold urban, classic vintage"
-          value={vibe} onChange={e => setVibe(e.target.value)} />
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
-          Used by AI to write your tagline + about section. Skip if you'd rather edit copy yourself later.
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-          {VIBE_SUGGESTIONS.map(v => (
-            <button key={v} onClick={() => setVibe(v)}
-              style={{ background: vibe === v ? 'rgba(201,168,76,0.12)' : 'transparent', border: `1px solid ${vibe === v ? 'var(--gold)' : 'var(--border-dim)'}`, color: vibe === v ? 'var(--gold)' : 'var(--muted)', padding: '6px 12px', fontSize: 11, cursor: 'pointer' }}>
-              {v}
-            </button>
-          ))}
-        </div>
-      </div>
     </Wrap>
   )
 
-  // ========== STEP 5: Business Line ==========
-  if (step === 5) return (
-    <Wrap {...wp(5)} title="Your Business" italic="Line." sub="Your AI receptionist is ready. Here's how clients will reach you."
+  // ========== STEP 6: Business Line ==========
+  if (step === 6) return (
+    <Wrap {...wp(6)} title="Your Business" italic="Line." sub="Your AI receptionist is ready. Here's how clients will reach you."
       onNext={finalize} nextLabel="Launch My Platform →" loading={loading}>
       {createdSalon?.twilio_phone_number ? (
         <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border)', padding: '24px', marginBottom: 24, textAlign: 'center' }}>
@@ -375,18 +388,11 @@ export default function Onboard() {
         ))}
       </div>
 
-      {siteContent && (
-        <div style={{ background: 'var(--dark-3)', border: '1px solid var(--border-dim)', padding: '20px', marginBottom: 20 }}>
-          <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>AI-Generated Site Preview</div>
-          <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 6, fontFamily: 'Cormorant Garamond, serif' }}>{siteContent.tagline}</div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>{siteContent.hero_description}</div>
-        </div>
-      )}
     </Wrap>
   )
 
-  // ========== STEP 6: Done ==========
-  if (step === 6) return (
+  // ========== STEP 7: Done ==========
+  if (step === 7) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--black)', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 520 }}>
         <div style={{ fontSize: 56, marginBottom: 28, color: 'var(--gold)' }}>✓</div>
