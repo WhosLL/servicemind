@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { sb } from '../../lib/supabase'
 import { TEMPLATE_LIST } from '../../lib/templates'
+import { subscriptionLabel } from '../../lib/subscription'
 import '../globals.css'
 
 const NAV = [
@@ -536,6 +537,71 @@ export default function Dashboard() {
 
   const Dot = ({ on }) => <div style={{ width: 7, height: 7, borderRadius: '50%', background: on ? 'var(--green)' : 'var(--muted)', flexShrink: 0 }} />
   const Badge = ({ text, color = 'var(--gold)' }) => <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color, border: `1px solid ${color}`, padding: '2px 8px', opacity: .9 }}>{text}</span>
+
+  function SubscriptionPanel({ salon }) {
+    const [busy, setBusy] = useState(false)
+    const info = subscriptionLabel(salon)
+    const ctaLabel = (info.state === 'active' || info.state === 'trialing') ? 'Manage Subscription'
+      : info.state === 'past_due' ? 'Update Payment'
+      : info.state === 'pending_payment' ? 'Finish Signup'
+      : info.state === 'trial_expired' ? 'Add Payment Method'
+      : 'Subscribe'
+    const accent = (info.state === 'past_due' || info.state === 'trial_expired' || info.state === 'pending_payment')
+      ? 'var(--gold)' : 'var(--border-dim)'
+
+    async function go() {
+      if (busy) return
+      setBusy(true)
+      try {
+        const { data: { session } } = await sb().auth.getSession()
+        const res = await fetch('/api/billing/checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || ''}`,
+          },
+          body: JSON.stringify({ salon_id: salon.id }),
+        })
+        const data = await res.json()
+        if (data.checkout_url) window.location.href = data.checkout_url
+        else alert(data.error || 'Could not open billing portal')
+      } catch (e) { alert('Billing error: ' + e.message) }
+      setBusy(false)
+    }
+
+    return (
+      <div style={{ marginBottom: 16, padding: '12px 14px', background: 'rgba(201,168,76,0.04)', border: `1px solid ${accent}` }}>
+        <div style={{ fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Subscription</div>
+        <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 10, lineHeight: 1.4 }}>
+          {info.message}
+        </div>
+        <button
+          onClick={go}
+          disabled={busy}
+          style={{
+            width: '100%', padding: '8px 0', fontSize: 9, letterSpacing: '.2em', textTransform: 'uppercase',
+            background: 'transparent', border: '1px solid var(--gold)', color: 'var(--gold)',
+            cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.5 : 1,
+          }}>
+          {busy ? '…' : ctaLabel}
+        </button>
+      </div>
+    )
+  }
+
+  // After a successful subscription Stripe sends the user back with
+  // ?subscription=success. Refresh the salon row so the new status shows.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !salon) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('subscription') === 'success') {
+      ;(async () => {
+        const { data } = await sb().from('salons').select('*').eq('id', salon.id).single()
+        if (data) setSalon(data)
+        window.history.replaceState({}, '', window.location.pathname)
+      })()
+    }
+  }, [salon?.id])
   const Empty = ({ main, sub }) => (
     <div style={{ border: '1px dashed var(--border-dim)', padding: '80px 32px', textAlign: 'center' }}>
       <div className="cormorant" style={{ fontSize: 22, fontStyle: 'italic', color: 'var(--muted)', marginBottom: 8 }}>{main}</div>
@@ -572,8 +638,9 @@ export default function Dashboard() {
         <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-dim)' }}>
           <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 3, fontWeight: 400 }}>{salon.shop_name}</div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14 }}>{salon.owner_name}</div>
+          <SubscriptionPanel salon={salon} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial'} />
+            <Dot on={salon.subscription_status === 'active' || salon.subscription_status === 'trial' || salon.subscription_status === 'trialing'} />
             <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>{salon.subscription_status}</span>
           </div>
           {isUserAdmin && (

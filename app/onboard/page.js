@@ -165,7 +165,7 @@ export default function Onboard() {
             template_id: templateId,
             hero_image_url: heroImageUrl.trim() || null,
             instagram: igClean,
-            subscription_status: 'trial', subscription_tier: 'basic',
+            subscription_status: 'pending_payment', subscription_tier: 'basic',
             onboarded: false, _services: svcRows,
           }
         })
@@ -180,8 +180,28 @@ export default function Onboard() {
         throw new Error(result.error || 'Signup failed')
       }
 
-      // Sign in
+      // Sign in immediately so the Checkout call can authenticate.
       await sb().auth.signInWithPassword({ email: info.email, password: info.password })
+
+      // Card upfront — kick the user straight into Stripe Checkout. The webhook
+      // will flip subscription_status from 'pending_payment' to 'trialing' when
+      // the subscription is created.
+      const { data: { session } } = await sb().auth.getSession()
+      const checkoutRes = await fetch('/api/billing/checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+        },
+        body: JSON.stringify({ salon_id: result.salon.id }),
+      })
+      const checkoutData = await checkoutRes.json()
+      if (checkoutData.checkout_url) {
+        window.location.href = checkoutData.checkout_url
+        return
+      }
+      // Checkout creation failed — fall through to the success step so the
+      // user can retry from the dashboard.
       setCreatedSalon(result.salon)
       setStep(6)
     } catch (e) { setErr(e.message || 'Setup failed.') }
