@@ -5,6 +5,7 @@ import { sb } from '../../lib/supabase'
 import { TEMPLATE_LIST } from '../../lib/templates'
 import TemplatePreview from './_TemplatePreview'
 import HeroPhotoUpload from './_HeroPhotoUpload'
+import BusinessHoursPicker, { DEFAULT_BUSINESS_HOURS } from './_BusinessHoursPicker'
 import '../globals.css'
 
 const SHOP_TYPES = [
@@ -111,6 +112,7 @@ export default function Onboard() {
   const [templateId, setTemplateId] = useState('luxury')
   const [heroImageUrl, setHeroImageUrl] = useState('')
   const [instagram, setInstagram] = useState('')
+  const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS)
   const [createdSalon, setCreatedSalon] = useState(null)
 
   // Check if an email is already registered before user wastes time on later steps.
@@ -166,6 +168,7 @@ export default function Onboard() {
             template_id: templateId,
             hero_image_url: heroImageUrl || null,
             instagram: igClean,
+            business_hours: businessHours,
             subscription_status: 'pending_payment', subscription_tier: 'basic',
             onboarded: false, _services: svcRows,
           }
@@ -350,8 +353,15 @@ export default function Onboard() {
 
   // ========== STEP 5: Personalize + Sign-up trigger ==========
   if (step === 5) return (
-    <Wrap {...wp(5)} title="Make it" italic="Yours." sub="Add a photo and link your Instagram. You can edit either later from your dashboard."
-      onNext={finalizeSignup}
+    <Wrap {...wp(5)} title="Make it" italic="Yours." sub="Add a photo, set your hours, and link your Instagram. You can edit all of this later from your dashboard."
+      onNext={() => {
+        if (!businessHours.some(h => !h.closed)) {
+          setErr('At least one day must be open.')
+          return
+        }
+        setErr('')
+        finalizeSignup()
+      }}
       loading={loading}
       nextLabel={loading ? 'Creating your shop...' : 'Activate →'}
       canNext={true}>
@@ -360,6 +370,14 @@ export default function Onboard() {
         <HeroPhotoUpload value={heroImageUrl} onChange={setHeroImageUrl} />
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
           A real photo of your shop becomes the hero on your booking page. Skip to use the template's default scene.
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 22 }}>
+        <FL>Business Hours</FL>
+        <BusinessHoursPicker value={businessHours} onChange={setBusinessHours} />
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
+          Pick a preset or set each day manually. Your AI receptionist uses these to answer "are you open?" questions.
         </div>
       </div>
 
