@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { sb } from '../../lib/supabase'
 import { TEMPLATE_LIST } from '../../lib/templates'
 import TemplatePreview from './_TemplatePreview'
+import HeroPhotoUpload from './_HeroPhotoUpload'
 import '../globals.css'
 
 const SHOP_TYPES = [
@@ -163,7 +164,7 @@ export default function Onboard() {
             email: info.email, city: info.city, state: info.state, address: info.address,
             salon_type: info.salon_type, slug,
             template_id: templateId,
-            hero_image_url: heroImageUrl.trim() || null,
+            hero_image_url: heroImageUrl || null,
             instagram: igClean,
             subscription_status: 'pending_payment', subscription_tier: 'basic',
             onboarded: false, _services: svcRows,
@@ -355,11 +356,10 @@ export default function Onboard() {
       nextLabel={loading ? 'Creating your shop...' : 'Activate →'}
       canNext={true}>
       <div style={{ marginBottom: 22 }}>
-        <FL>Shop Photo URL (optional)</FL>
-        <input className="input" placeholder="https://example.com/your-shop.jpg"
-          value={heroImageUrl} onChange={e => setHeroImageUrl(e.target.value)} />
+        <FL>Shop Photo (optional)</FL>
+        <HeroPhotoUpload value={heroImageUrl} onChange={setHeroImageUrl} />
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
-          Paste a direct image URL to use a real photo of your shop as the hero. Best at 1920×1080 or wider. Skip if you want to use the template's default scene.
+          A real photo of your shop becomes the hero on your booking page. Skip to use the template's default scene.
         </div>
       </div>
 
