@@ -7,6 +7,7 @@ import TemplatePreview from './_TemplatePreview'
 import HeroPhotoUpload from './_HeroPhotoUpload'
 import BusinessHoursPicker, { DEFAULT_BUSINESS_HOURS } from './_BusinessHoursPicker'
 import AiCopyFields from './_AiCopyFields'
+import BookingPagePreview from './_BookingPagePreview'
 import '../globals.css'
 
 const SHOP_TYPES = [
@@ -371,6 +372,22 @@ export default function Onboard() {
       loading={loading}
       nextLabel={loading ? 'Creating your shop...' : 'Activate →'}
       canNext={true}>
+      <div style={{ marginBottom: 28 }}>
+        <BookingPagePreview
+          templateId={templateId}
+          shopName={info.shop_name}
+          salonType={info.salon_type}
+          tagline={siteCopy.tagline}
+          about={siteCopy.about}
+          heroImageUrl={heroImageUrl}
+          services={coreSvcs}
+          businessHours={businessHours}
+          instagram={instagram}
+          city={info.city}
+          state={info.state}
+        />
+      </div>
+
       <div style={{ marginBottom: 22 }}>
         <FL>Shop Photo (optional)</FL>
         <HeroPhotoUpload value={heroImageUrl} onChange={setHeroImageUrl} />
