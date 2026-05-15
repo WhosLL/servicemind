@@ -8,6 +8,7 @@ import HeroPhotoUpload from './_HeroPhotoUpload'
 import BusinessHoursPicker, { DEFAULT_BUSINESS_HOURS } from './_BusinessHoursPicker'
 import AiCopyFields from './_AiCopyFields'
 import BookingPagePreview from './_BookingPagePreview'
+import ColorwayControls from './_ColorwayControls'
 import '../globals.css'
 
 const SHOP_TYPES = [
@@ -116,6 +117,8 @@ export default function Onboard() {
   const [instagram, setInstagram] = useState('')
   const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS)
   const [siteCopy, setSiteCopy] = useState({ tagline: '', about: '' })
+  const [photoColors, setPhotoColors] = useState(null)
+  const [colorwayOverrides, setColorwayOverrides] = useState(null)
   const [createdSalon, setCreatedSalon] = useState(null)
 
   // Check if an email is already registered before user wastes time on later steps.
@@ -176,6 +179,7 @@ export default function Onboard() {
               tagline: siteCopy.tagline || null,
               about: siteCopy.about || null,
             } : null,
+            colorway_overrides: colorwayOverrides,
             subscription_status: 'pending_payment', subscription_tier: 'basic',
             onboarded: false, _services: svcRows,
           }
@@ -385,12 +389,30 @@ export default function Onboard() {
           instagram={instagram}
           city={info.city}
           state={info.state}
+          colorwayOverrides={colorwayOverrides}
         />
       </div>
 
       <div style={{ marginBottom: 22 }}>
         <FL>Shop Photo (optional)</FL>
-        <HeroPhotoUpload value={heroImageUrl} onChange={setHeroImageUrl} />
+        <HeroPhotoUpload
+          value={heroImageUrl}
+          onChange={(url) => {
+            setHeroImageUrl(url)
+            if (!url) {
+              // Photo removed — drop the extracted palette and any AI overrides.
+              setPhotoColors(null)
+              setColorwayOverrides(null)
+            }
+          }}
+          onColors={setPhotoColors}
+        />
+        <ColorwayControls
+          templateId={templateId}
+          photoColors={photoColors}
+          overrides={colorwayOverrides}
+          onChange={setColorwayOverrides}
+        />
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
           A real photo of your shop becomes the hero on your booking page. Skip to use the template's default scene.
         </div>

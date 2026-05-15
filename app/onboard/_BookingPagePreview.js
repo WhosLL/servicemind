@@ -37,9 +37,10 @@ export default function BookingPagePreview({
   instagram,
   city,
   state,
+  colorwayOverrides,
 }) {
   const tpl = getTemplate(templateId)
-  const c = tpl.colors
+  const c = { ...tpl.colors, ...(colorwayOverrides || {}) }
   const dec = tpl.decoration || {}
   const displayFont = `'${tpl.fonts.display}', ${tpl.fonts.displayFallback || 'serif'}`
   const uiFont = `'${tpl.fonts.ui}', ${tpl.fonts.uiFallback || 'sans-serif'}`

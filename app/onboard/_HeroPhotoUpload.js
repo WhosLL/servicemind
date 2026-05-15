@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useState } from 'react'
+import { extractDominantColors } from './_extract-colors'
 
 const MAX_W = 1920
 const MAX_H = 1080
@@ -46,7 +47,7 @@ async function resizeImage(file) {
   }
 }
 
-export default function HeroPhotoUpload({ value, onChange }) {
+export default function HeroPhotoUpload({ value, onChange, onColors }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [dragOver, setDragOver] = useState(false)
@@ -64,6 +65,13 @@ export default function HeroPhotoUpload({ value, onChange }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upload failed.')
       onChange(data.url)
+      if (onColors) {
+        // Best-effort: color extraction failure should not block upload success.
+        try {
+          const colors = await extractDominantColors(sized)
+          if (colors.length) onColors(colors)
+        } catch {}
+      }
     } catch (e) {
       setErr(e.message || 'Upload failed.')
     } finally {
