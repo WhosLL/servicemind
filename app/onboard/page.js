@@ -6,6 +6,7 @@ import { TEMPLATE_LIST } from '../../lib/templates'
 import TemplatePreview from './_TemplatePreview'
 import HeroPhotoUpload from './_HeroPhotoUpload'
 import BusinessHoursPicker, { DEFAULT_BUSINESS_HOURS } from './_BusinessHoursPicker'
+import AiCopyFields from './_AiCopyFields'
 import '../globals.css'
 
 const SHOP_TYPES = [
@@ -113,6 +114,7 @@ export default function Onboard() {
   const [heroImageUrl, setHeroImageUrl] = useState('')
   const [instagram, setInstagram] = useState('')
   const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS)
+  const [siteCopy, setSiteCopy] = useState({ tagline: '', about: '' })
   const [createdSalon, setCreatedSalon] = useState(null)
 
   // Check if an email is already registered before user wastes time on later steps.
@@ -169,6 +171,10 @@ export default function Onboard() {
             hero_image_url: heroImageUrl || null,
             instagram: igClean,
             business_hours: businessHours,
+            site_content: (siteCopy.tagline || siteCopy.about) ? {
+              tagline: siteCopy.tagline || null,
+              about: siteCopy.about || null,
+            } : null,
             subscription_status: 'pending_payment', subscription_tier: 'basic',
             onboarded: false, _services: svcRows,
           }
@@ -378,6 +384,25 @@ export default function Onboard() {
         <BusinessHoursPicker value={businessHours} onChange={setBusinessHours} />
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
           Pick a preset or set each day manually. Your AI receptionist uses these to answer "are you open?" questions.
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 22 }}>
+        <FL>Booking Page Copy</FL>
+        <AiCopyFields
+          context={{
+            shop_name: info.shop_name,
+            salon_type: info.salon_type,
+            city: info.city,
+            state: info.state,
+            owner_name: info.owner_name,
+            template_id: templateId,
+          }}
+          value={siteCopy}
+          onChange={setSiteCopy}
+        />
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
+          AI drafts a tagline and About section from your shop info. Edit either freely, or hit Try again for a different take.
         </div>
       </div>
 
