@@ -190,6 +190,22 @@ export default function Dashboard() {
     }
   }, [salon])
 
+  // After a successful subscription Stripe sends the user back with
+  // ?subscription=success. Refresh the salon row so the new status shows.
+  // NOTE: must be before the `if (!salon) return` guard — hooks cannot be
+  // called after a conditional return (Rules of Hooks).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !salon) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('subscription') === 'success') {
+      ;(async () => {
+        const { data } = await sb().from('salons').select('*').eq('id', salon.id).single()
+        if (data) setSalon(data)
+        window.history.replaceState({}, '', window.location.pathname)
+      })()
+    }
+  }, [salon?.id])
+
   if (!salon) return <div style={{ minHeight: '100vh', background: '#080808' }} />
 
   const load = async () => {
@@ -589,19 +605,6 @@ export default function Dashboard() {
     )
   }
 
-  // After a successful subscription Stripe sends the user back with
-  // ?subscription=success. Refresh the salon row so the new status shows.
-  useEffect(() => {
-    if (typeof window === 'undefined' || !salon) return
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('subscription') === 'success') {
-      ;(async () => {
-        const { data } = await sb().from('salons').select('*').eq('id', salon.id).single()
-        if (data) setSalon(data)
-        window.history.replaceState({}, '', window.location.pathname)
-      })()
-    }
-  }, [salon?.id])
   const Empty = ({ main, sub }) => (
     <div style={{ border: '1px dashed var(--border-dim)', padding: '80px 32px', textAlign: 'center' }}>
       <div className="cormorant" style={{ fontSize: 22, fontStyle: 'italic', color: 'var(--muted)', marginBottom: 8 }}>{main}</div>
