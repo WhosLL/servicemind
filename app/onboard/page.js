@@ -317,8 +317,8 @@ export default function Onboard() {
       </div>
 
       <div style={{ border: '1px solid var(--border-dim)', background: 'var(--dark-3)' }}>
-        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(201,168,76,0.03)' }}>
-          <div style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 500 }}>Add-Ons (optional)</div>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(201,168,76,0.06)' }}>
+          <div style={{ fontSize: 11, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 500 }}>Add-Ons (optional)</div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Extras clients can add — beard trim, hot towel, designs, etc.</div>
         </div>
         <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
