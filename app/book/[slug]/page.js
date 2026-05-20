@@ -61,8 +61,10 @@ export default function BookPage({ params, searchParams }) {
   const [bookStep, setBookStep] = useState('service') // service, addons, date, time, info
 
   // Template-driven theming. Falls back to luxury before salon loads.
+  // Per-shop colorway_overrides (set during onboarding) layer on top, but only
+  // the override keys win — everything else stays template (legibility preserved).
   const tpl = getTemplate(salon?.template_id)
-  const tc = tpl.colors
+  const tc = { ...tpl.colors, ...(salon?.colorway_overrides || {}) }
   const gold = tc.accent
   const dark = tc.bg
   const dark2 = tc.surface
@@ -472,6 +474,11 @@ export default function BookPage({ params, searchParams }) {
         <div style={{ position: 'relative', zIndex: 2, padding: '60px 24px 36px', textAlign: 'center' }}>
           <div style={{ fontFamily: fontDisplay, fontSize: 11, color: gold, letterSpacing: eyebrowSpacing, marginBottom: 12, textTransform: eyebrowTransform, fontWeight: 500 }}>SERVICEMIND</div>
           <div style={{ fontFamily: fontBody, fontSize: 40, color: text, fontWeight: 300, lineHeight: 1.05, letterSpacing: tpl.fonts.body === 'Cormorant Garamond' ? '-0.01em' : '0' }}>{salon.shop_name}</div>
+          {salon.site_content?.tagline && (
+            <div style={{ fontSize: 14, color: salon.hero_image_url ? 'rgba(255,255,255,0.92)' : muted, marginTop: 12, fontStyle: 'italic', maxWidth: 560, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.5 }}>
+              {salon.site_content.tagline}
+            </div>
+          )}
           <div style={{ fontSize: 12, color: muted, marginTop: 10 }}>{[salon.salon_type, salon.city, salon.state].filter(Boolean).join(' · ')}</div>
           {salon.phone && <div style={{ fontSize: 12, color: muted, marginTop: 4 }}>{salon.phone}</div>}
           {igUsername && (
@@ -493,6 +500,33 @@ export default function BookPage({ params, searchParams }) {
         {/* SELECT SERVICE */}
         {bookStep === 'service' && (
           <div style={{ paddingTop: 28 }}>
+            {salon.site_content?.about && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ fontFamily: fontDisplay, fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 10, textTransform: 'uppercase' }}>About</div>
+                <div style={{ fontSize: 14, color: text, lineHeight: 1.65, fontFamily: fontUi }}>
+                  {salon.site_content.about}
+                </div>
+              </div>
+            )}
+            {Array.isArray(salon.business_hours) && salon.business_hours.length === 7 && (
+              <div style={{ marginBottom: 28, border: `1px solid ${border}`, background: dark2 }}>
+                <div style={{ padding: '10px 14px', borderBottom: `1px solid ${border}` }}>
+                  <div style={{ fontFamily: fontDisplay, fontSize: 10, color: gold, letterSpacing: '.3em', textTransform: 'uppercase' }}>Hours</div>
+                </div>
+                <div style={{ padding: '8px 14px' }}>
+                  {salon.business_hours.map(h => {
+                    const dayLabel = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' }[h.day] || h.day
+                    const display = h.closed ? 'Closed' : `${minsToDisplay(parseTime24(h.open))} – ${minsToDisplay(parseTime24(h.close))}`
+                    return (
+                      <div key={h.day} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12, color: h.closed ? muted : text, fontFamily: fontUi }}>
+                        <span style={{ letterSpacing: '.1em', textTransform: 'uppercase', fontSize: 11, color: muted }}>{dayLabel}</span>
+                        <span>{display}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <div style={{ fontFamily: fontDisplay, fontSize: 10, color: gold, letterSpacing: '.3em', marginBottom: 20, textTransform: 'uppercase' }}>Select a Service</div>
             {sortedCats.map(cat => (
               <div key={cat} style={{ marginBottom: 24 }}>

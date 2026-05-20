@@ -4,6 +4,11 @@ import { useRouter } from 'next/navigation'
 import { sb } from '../../lib/supabase'
 import { TEMPLATE_LIST } from '../../lib/templates'
 import TemplatePreview from './_TemplatePreview'
+import HeroPhotoUpload from './_HeroPhotoUpload'
+import BusinessHoursPicker, { DEFAULT_BUSINESS_HOURS } from './_BusinessHoursPicker'
+import AiCopyFields from './_AiCopyFields'
+import BookingPagePreview from './_BookingPagePreview'
+import ColorwayControls from './_ColorwayControls'
 import '../globals.css'
 
 const SHOP_TYPES = [
@@ -110,6 +115,10 @@ export default function Onboard() {
   const [templateId, setTemplateId] = useState('luxury')
   const [heroImageUrl, setHeroImageUrl] = useState('')
   const [instagram, setInstagram] = useState('')
+  const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS)
+  const [siteCopy, setSiteCopy] = useState({ tagline: '', about: '' })
+  const [photoColors, setPhotoColors] = useState(null)
+  const [colorwayOverrides, setColorwayOverrides] = useState(null)
   const [createdSalon, setCreatedSalon] = useState(null)
 
   // Check if an email is already registered before user wastes time on later steps.
@@ -163,8 +172,14 @@ export default function Onboard() {
             email: info.email, city: info.city, state: info.state, address: info.address,
             salon_type: info.salon_type, slug,
             template_id: templateId,
-            hero_image_url: heroImageUrl.trim() || null,
+            hero_image_url: heroImageUrl || null,
             instagram: igClean,
+            business_hours: businessHours,
+            site_content: (siteCopy.tagline || siteCopy.about) ? {
+              tagline: siteCopy.tagline || null,
+              about: siteCopy.about || null,
+            } : null,
+            colorway_overrides: colorwayOverrides,
             subscription_status: 'pending_payment', subscription_tier: 'basic',
             onboarded: false, _services: svcRows,
           }
@@ -349,17 +364,84 @@ export default function Onboard() {
 
   // ========== STEP 5: Personalize + Sign-up trigger ==========
   if (step === 5) return (
-    <Wrap {...wp(5)} title="Make it" italic="Yours." sub="Add a photo and link your Instagram. You can edit either later from your dashboard."
-      onNext={finalizeSignup}
+    <Wrap {...wp(5)} title="Make it" italic="Yours." sub="Add a photo, set your hours, and link your Instagram. You can edit all of this later from your dashboard."
+      onNext={() => {
+        if (!businessHours.some(h => !h.closed)) {
+          setErr('At least one day must be open.')
+          return
+        }
+        setErr('')
+        finalizeSignup()
+      }}
       loading={loading}
       nextLabel={loading ? 'Creating your shop...' : 'Activate →'}
       canNext={true}>
+      <div style={{ marginBottom: 28 }}>
+        <BookingPagePreview
+          templateId={templateId}
+          shopName={info.shop_name}
+          salonType={info.salon_type}
+          tagline={siteCopy.tagline}
+          about={siteCopy.about}
+          heroImageUrl={heroImageUrl}
+          services={coreSvcs}
+          businessHours={businessHours}
+          instagram={instagram}
+          city={info.city}
+          state={info.state}
+          colorwayOverrides={colorwayOverrides}
+        />
+      </div>
+
       <div style={{ marginBottom: 22 }}>
-        <FL>Shop Photo URL (optional)</FL>
-        <input className="input" placeholder="https://example.com/your-shop.jpg"
-          value={heroImageUrl} onChange={e => setHeroImageUrl(e.target.value)} />
+        <FL>Shop Photo (optional)</FL>
+        <HeroPhotoUpload
+          value={heroImageUrl}
+          onChange={(url) => {
+            setHeroImageUrl(url)
+            if (!url) {
+              // Photo removed — drop the extracted palette and any AI overrides.
+              setPhotoColors(null)
+              setColorwayOverrides(null)
+            }
+          }}
+          onColors={setPhotoColors}
+        />
+        <ColorwayControls
+          templateId={templateId}
+          photoColors={photoColors}
+          overrides={colorwayOverrides}
+          onChange={setColorwayOverrides}
+        />
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
-          Paste a direct image URL to use a real photo of your shop as the hero. Best at 1920×1080 or wider. Skip if you want to use the template's default scene.
+          A real photo of your shop becomes the hero on your booking page. Skip to use the template's default scene.
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 22 }}>
+        <FL>Business Hours</FL>
+        <BusinessHoursPicker value={businessHours} onChange={setBusinessHours} />
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
+          Pick a preset or set each day manually. Your AI receptionist uses these to answer "are you open?" questions.
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 22 }}>
+        <FL>Booking Page Copy</FL>
+        <AiCopyFields
+          context={{
+            shop_name: info.shop_name,
+            salon_type: info.salon_type,
+            city: info.city,
+            state: info.state,
+            owner_name: info.owner_name,
+            template_id: templateId,
+          }}
+          value={siteCopy}
+          onChange={setSiteCopy}
+        />
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
+          AI drafts a tagline and About section from your shop info. Edit either freely, or hit Try again for a different take.
         </div>
       </div>
 
