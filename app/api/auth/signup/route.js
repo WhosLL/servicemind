@@ -28,7 +28,31 @@ export async function POST(req) {
   try {
     const supabaseAdmin = getAdmin()
     const body = await req.json()
-    const { email, password, salonData } = body
+    const { email, password, salonData, userId: existingUserId } = body
+
+    // OAuth path: user already exists, just create the salon
+    if (existingUserId) {
+      const userId = existingUserId
+      if (salonData) {
+        const services = salonData._services || []
+        delete salonData._services
+        delete salonData._campaigns
+        const { data: salon, error: salonError } = await supabaseAdmin
+          .from('salons')
+          .insert([{ ...salonData, user_id: userId, created_via: 'oauth_signup' }])
+          .select()
+        if (salonError) return Response.json({ error: 'Failed to create salon: ' + salonError.message }, { status: 500 })
+        const salonId = salon[0].id
+        if (services.length > 0) {
+          await supabaseAdmin.from('salon_services').insert(
+            services.map((s, i) => ({ ...s, salon_id: salonId, sort_order: i }))
+          )
+        }
+        await supabaseAdmin.from('salon_campaigns').insert(DEFAULT_CAMPAIGNS(salonId))
+        return Response.json({ success: true, user_id: userId, salon: salon[0] })
+      }
+      return Response.json({ success: true, user_id: userId })
+    }
 
     if (!email || !password) {
       return Response.json({ error: 'Email and password are required' }, { status: 400 })

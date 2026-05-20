@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { sb } from '../../lib/supabase'
 import { TEMPLATE_LIST } from '../../lib/templates'
 import TemplatePreview from './_TemplatePreview'
@@ -121,6 +122,21 @@ export default function Onboard() {
   const [colorwayOverrides, setColorwayOverrides] = useState(null)
   const [createdSalon, setCreatedSalon] = useState(null)
 
+  const searchParams = useSearchParams()
+  const isOAuth = searchParams.get('oauth') === 'true'
+  const [oauthUserId, setOauthUserId] = useState(null)
+
+  // Pre-fill email from OAuth session
+  useEffect(() => {
+    if (!isOAuth) return
+    sb().auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setOauthUserId(session.user.id)
+        set('email', session.user.email || '')
+      }
+    })
+  }, [isOAuth])
+
   // Check if an email is already registered before user wastes time on later steps.
   const checkEmailTaken = async (email) => {
     try {
@@ -165,8 +181,7 @@ export default function Onboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: info.email,
-          password: info.password,
+          ...(isOAuth ? { userId: oauthUserId } : { email: info.email, password: info.password }),
           salonData: {
             shop_name: info.shop_name, owner_name: info.owner_name, phone: info.phone,
             email: info.email, city: info.city, state: info.state, address: info.address,
@@ -196,7 +211,10 @@ export default function Onboard() {
       }
 
       // Sign in immediately so the Checkout call can authenticate.
-      await sb().auth.signInWithPassword({ email: info.email, password: info.password })
+      // OAuth users are already signed in — skip this step.
+      if (!isOAuth) {
+        await sb().auth.signInWithPassword({ email: info.email, password: info.password })
+      }
 
       // Card upfront — kick the user straight into Stripe Checkout. The webhook
       // will flip subscription_status from 'pending_payment' to 'trialing' when
@@ -275,13 +293,15 @@ export default function Onboard() {
         if (!info.shop_name.trim() || !info.owner_name.trim() || !info.phone.trim()) { setErr('Shop name, owner name, and phone are required.'); return }
         if (!info.email.trim()) { setErr('Email is required.'); return }
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email.trim())) { setErr('Please enter a valid email address.'); return }
-        if (!info.password || info.password.length < 8) { setErr('Password must be at least 8 characters.'); return }
-        setLoading(true)
-        const taken = await checkEmailTaken(info.email.trim())
-        setLoading(false)
-        if (taken) {
-          setErr('An account with this email already exists. Try signing in instead, or use a different email.')
-          return
+        if (!isOAuth) {
+          if (!info.password || info.password.length < 8) { setErr('Password must be at least 8 characters.'); return }
+          setLoading(true)
+          const taken = await checkEmailTaken(info.email.trim())
+          setLoading(false)
+          if (taken) {
+            setErr('An account with this email already exists. Try signing in instead, or use a different email.')
+            return
+          }
         }
         setErr(''); setStep(3)
       }}
@@ -290,14 +310,23 @@ export default function Onboard() {
         {[['Shop Name *', 'shop_name', 'Your shop name'], ['Owner Name *', 'owner_name', 'Your full name'], ['Phone *', 'phone', '(555) 000-0000'], ['Email *', 'email', 'you@example.com']].map(([label, key, ph]) => (
           <div key={key}>
             <FL>{label}</FL>
-            <input className="input" placeholder={ph} value={info[key]} onChange={e => set(key, e.target.value)} type={key === 'email' ? 'email' : 'text'} autoComplete={key === 'email' ? 'email' : 'off'} />
+            <input className="input" placeholder={ph} value={info[key]} onChange={e => set(key, e.target.value)} type={key === 'email' ? 'email' : 'text'} autoComplete={key === 'email' ? 'email' : 'off'} readOnly={key === 'email' && isOAuth} style={key === 'email' && isOAuth ? { opacity: 0.6, cursor: 'default' } : {}} />
           </div>
         ))}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <FL>Create a Password *</FL>
-          <input className="input" type="password" placeholder="At least 8 characters" value={info.password} onChange={e => set('password', e.target.value)} autoComplete="new-password" />
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>You'll use this email & password to log into your dashboard.</div>
-        </div>
+        {!isOAuth && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <FL>Create a Password *</FL>
+            <input className="input" type="password" placeholder="At least 8 characters" value={info.password} onChange={e => set('password', e.target.value)} autoComplete="new-password" />
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>You'll use this email & password to log into your dashboard.</div>
+          </div>
+        )}
+        {isOAuth && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: 'var(--gold)' }}>✓</span> Signed in via Google / Apple — no password needed.
+            </div>
+          </div>
+        )}
         <div>
           <FL>Address (optional)</FL>
           <input className="input" placeholder="123 Main Street" value={info.address} onChange={e => set('address', e.target.value)} />
