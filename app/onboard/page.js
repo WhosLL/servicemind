@@ -110,7 +110,7 @@ export default function Onboard() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
-  const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', password: '', city: '', state: '', address: '', salon_type: '' })
+  const [info, setInfo] = useState({ shop_name: '', owner_name: '', phone: '', email: '', password: '', city: '', state: '', address: '', salon_type: '', salon_type_label: '' })
   const [coreSvcs, setCoreSvcs] = useState([{ name: '', price: '', duration: '30' }])
   const [addons, setAddons] = useState([{ name: '', price: '', duration: '0' }])
   const [templateId, setTemplateId] = useState('luxury')
@@ -185,7 +185,9 @@ export default function Onboard() {
           salonData: {
             shop_name: info.shop_name, owner_name: info.owner_name, phone: info.phone,
             email: info.email, city: info.city, state: info.state, address: info.address,
-            salon_type: info.salon_type, slug,
+            salon_type: info.salon_type,
+            salon_type_label: info.salon_type === 'other' ? (info.salon_type_label.trim() || null) : null,
+            slug,
             template_id: templateId,
             hero_image_url: heroImageUrl || null,
             instagram: igClean,
@@ -261,9 +263,10 @@ export default function Onboard() {
     <Wrap {...wp(1)} title="What kind of" italic="shop?" sub="Pick the closest fit. This shapes your booking page templates, the AI receptionist's tone, and which automations come pre-configured."
       onNext={() => {
         if (!info.salon_type) { setErr('Pick a shop type to continue.'); return }
+        if (info.salon_type === 'other' && !info.salon_type_label.trim()) { setErr('Tell us what kind of business you run.'); return }
         setErr(''); setStep(2)
       }}
-      canNext={!!info.salon_type}>
+      canNext={!!info.salon_type && (info.salon_type !== 'other' || !!info.salon_type_label.trim())}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
         {SHOP_TYPES.map(t => {
           const selected = info.salon_type === t.id
@@ -283,6 +286,27 @@ export default function Onboard() {
           )
         })}
       </div>
+      {info.salon_type === 'other' && (
+        <div style={{ marginTop: 20 }}>
+          <label style={{ display: 'block', fontSize: 10, letterSpacing: '.25em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 7 }}>
+            What kind of business?
+          </label>
+          <input
+            autoFocus
+            value={info.salon_type_label}
+            onChange={e => set('salon_type_label', e.target.value)}
+            placeholder="e.g. Wedding Venue, Dog Groomer, Tattoo Studio…"
+            style={{
+              width: '100%', background: 'var(--dark-3)', border: '1px solid var(--gold)',
+              color: 'var(--text)', padding: '12px 14px', fontSize: 14, outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
+            This helps us build the right templates and AI for your type of business.
+          </div>
+        </div>
+      )}
     </Wrap>
   )
 
