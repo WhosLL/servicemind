@@ -1,8 +1,8 @@
 'use client'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { sb } from '../../lib/supabase'
-import '../globals.css'
+import { sb } from '../../../lib/supabase'
+import '../../globals.css'
 
 export default function AuthCallback() {
   const router = useRouter()
