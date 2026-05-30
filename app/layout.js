@@ -2,11 +2,11 @@ import './globals.css'
 
 export const metadata = {
   title: 'ServiceMind — Your chair. Your phone. Booked.',
-  description: 'A branded booking page plus an SMS-native AI receptionist that books, reschedules, and reminds — right inside the text thread your clients already use. $49/mo. 30-day free trial. No card required.',
+  description: 'A branded booking page plus an SMS-native AI receptionist that books, reschedules, and reminds — right inside the text thread your clients already use. $30/mo. 30-day free trial. No card required.',
   metadataBase: new URL('https://servicemind.io'),
   openGraph: {
     title: 'ServiceMind — Your chair. Your phone. Booked.',
-    description: 'Branded booking page + SMS-native AI receptionist. Reschedules in-thread, no portal. $49/mo flat.',
+    description: 'Branded booking page + SMS-native AI receptionist. Reschedules in-thread, no portal. $30/mo flat.',
     url: 'https://servicemind.io',
     siteName: 'ServiceMind',
     type: 'website',
@@ -14,7 +14,7 @@ export const metadata = {
   twitter: {
     card: 'summary',
     title: 'ServiceMind — Your chair. Your phone. Booked.',
-    description: 'Branded booking page + SMS-native AI receptionist. Reschedules in-thread. $49/mo.',
+    description: 'Branded booking page + SMS-native AI receptionist. Reschedules in-thread. $30/mo.',
   }
 }
 
