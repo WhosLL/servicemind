@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { sb } from '../../lib/supabase'
@@ -105,7 +105,7 @@ function SvcHeader() {
   )
 }
 
-export default function Onboard() {
+function Onboard() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -567,4 +567,12 @@ export default function Onboard() {
   )
 
   return null
+}
+
+export default function OnboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <Onboard />
+    </Suspense>
+  )
 }
