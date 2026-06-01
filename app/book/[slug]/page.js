@@ -241,7 +241,7 @@ export default function BookPage({ params, searchParams }) {
 
   useEffect(() => {
     const load = async () => {
-      const { data: s } = await supabase.from('salons').select('*').eq('slug', slug).single()
+      const { data: s } = await supabase.from('salons').select('id, slug, shop_name, owner_name, salon_type, salon_type_label, salon_type_other, phone, instagram, website, address, city, state, zip, hours, business_hours, schedule_settings, ai_personality, ai_booking_enabled, vibe, google_review_url, template_id, hero_image_url, site_content, colorway_overrides, monthly_rate, subscription_status, subscription_tier, onboarded, is_pilot, created_at').eq('slug', slug).single()
       if (!s) { setNotFound(true); setLoading(false); return }
       setSalon(s)
       const { data: svcs } = await supabase.from('salon_services').select('*').eq('salon_id', s.id).eq('is_active', true).order('sort_order')
