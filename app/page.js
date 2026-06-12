@@ -111,7 +111,7 @@ export default function Page() {
               </p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 28 }}>
                 <a href="/onboard" className="btn-primary btn-primary--lg">Start free for 30 days</a>
-                <a href="/book/leed-barber-shop" className="btn-secondary btn-primary--lg">See a live booking page</a>
+                <a href="/templates" className="btn-secondary btn-primary--lg">See booking page templates</a>
               </div>
               <div style={{ fontSize: 13, color: 'var(--ink-4)', marginBottom: 32 }}>
                 $30/mo · 30-day free trial · Cancel anytime
