@@ -37,7 +37,6 @@ export default function HeroSmsMockup({ width = 320 }) {
             i++
             setShown(i)
             if (i < STEPS.length) {
-              const next = STEPS[i]?.type === 'card' ? 600 : next?.type === 'typing' ? 1500 : 700
               setTimeout(tick, STEPS[i - 1]?.type === 'typing' ? 1400 : 700)
             }
           }
